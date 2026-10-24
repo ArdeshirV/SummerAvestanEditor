@@ -54,3 +54,9 @@ compile_commands.json
 *creator.user*
 
 *_qmlcache.qrc
+
+# Avestan Editor build outputs
+!Makefile
+/build-qmake/
+/dist/
+/tests/build/

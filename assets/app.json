@@ -1,0 +1,199 @@
+{
+  "application": {
+    "id": "org.ardeshirv.cuneiform",
+    "name": "Summer Avestan Editor",
+    "version": "1.0",
+    "icon": "Icon.png",
+    "project_url": "https://github.com/ArdeshirV/cuneiform",
+    "author_handle": "@ArdeshirV",
+    "author_url": "https://ardeshirv.github.io/",
+    "copyright": "Copyright (c) 2026 @ArdeshirV, Licenced under GPLv3+"
+  },
+  "strings": {
+    "placeholder": "Open or start a Unicode text document…",
+    "empty": "",
+    "right_to_left": "Right to left",
+    "right_to_left_mark": "\u200F",
+    "open": "Open",
+    "save": "Save",
+    "save_as": "Save As",
+    "font": "Font",
+    "settings": "Settings",
+    "about": "About",
+    "exit": "Exit",
+    "language": "Language:",
+    "space_key": "␠",
+    "combining_circle": "◌",
+    "untitled_filename": "untitled.txt",
+    "untitled": "Untitled",
+    "dirty_marker": " •",
+    "status_format": "%s%s   |   %s   |   Unicode data: %s   |   %d code points",
+    "font_size_medium": "Medium",
+    "font_size_small": "Small",
+    "font_size_large": "Large",
+    "theme_dark": "Metallic Dark",
+    "theme_light": "Metallic Light",
+    "theme_system": "System",
+    "font_load_error": "load saved font: %w",
+    "font_file_too_large": "font file exceeds the %d MiB limit",
+    "font_file_invalid": "invalid TrueType/OpenType font: %w",
+    "font_file_default_name": "custom-font.ttf",
+    "font_bundled_name": "UnicodeScriptFallback.ttf",
+    "font_bundled_button": "Use bundled font",
+    "font_file_button": "Font file...",
+    "font_filter": "Fonts (*.ttf *.otf)",
+    "document_filter": "Text files (*.txt *.text);;All files (*)",
+    "unicode_data_version": "17.0",
+    "font_settings_label": "Text size",
+    "theme_settings_label": "Theme",
+    "font_extension_ttf": ".ttf",
+    "font_extension_otf": ".otf",
+    "settings_close": "Close",
+    "about_version": "Version: ",
+    "about_dialog_title": "About",
+    "project_link_description": "Project files and source codes:",
+    "donation_title": "Please Donate!",
+    "donation_description": "We truly appreciate and thank you for any donation you can give to our project",
+    "donation_address": "Ethereum 0x6E6465394D14975956cd1BD37ab4E35F2C60300E",
+    "donation_clipboard_address": "0x6E6465394D14975956cd1BD37ab4E35F2C60300E",
+    "donation_image_name": "ethereum-donation.png",
+    "close": "Close",
+    "all_files": "All files",
+    "save_changes_title": "Unsaved changes",
+    "save_changes_message": "Do you want to save changes?",
+    "yes": "Yes",
+    "no": "No",
+    "cancel": "Cancel",
+    "clipboard_cut": "Cut",
+    "clipboard_copy": "Copy",
+    "clipboard_paste": "Paste",
+    "clipboard_select_all": "Select all",
+    "phonetic_space": "space",
+    "phonetic_unknown_format": "%X",
+    "language_sample_format": "%s — %s",
+    "key_label_prefix": " ",
+    "key_label_separator": " ",
+    "invalid_utf8_replacement": "�",
+    "selection_highlight": "#75B5D170",
+    "theme_variant_dark": "dark",
+    "theme_variant_light": "light",
+    "color_hex_prefix": "#",
+    "unicode_codepoint_prefix": "U+",
+    "theme_color_invalid": "invalid theme color %q: %w",
+    "theme_color_hex_digits": "expected %d hexadecimal digits",
+    "encoding_utf8": "UTF-8",
+    "encoding_utf8_bom": "UTF-8 with BOM",
+    "encoding_utf16_le": "UTF-16 LE",
+    "encoding_utf16_be": "UTF-16 BE",
+    "document_invalid_utf8_bom": "file contains invalid UTF-8",
+    "document_invalid_utf8": "file is not valid UTF-8 and has no recognized Unicode byte-order mark",
+    "document_incomplete_utf16_unit": "UTF-16 file has an incomplete code unit",
+    "document_invalid_utf16_surrogate": "invalid UTF-16 surrogate pair at code unit %d",
+    "document_unpaired_utf16_surrogate": "unpaired UTF-16 low surrogate at code unit %d"
+  },
+  "numbers": {
+    "keyboard_columns": 5,
+    "initial_window_width": 1000,
+    "initial_window_height": 760,
+    "default_editor_fraction": 0.3,
+    "default_font_file_limit_mib": 20,
+    "bytes_per_mib": 1048576,
+    "splitter_save_interval_millis": 250,
+    "font_scale_small": 0.85,
+    "font_scale_medium": 1.0,
+    "font_scale_large": 1.15,
+    "about_icon_size": 72,
+    "about_name_font_multiplier": 2.1,
+    "about_close_button_width": 140,
+    "editor_base_font_point_size": 14,
+    "settings_close_button_width_multiplier": 2,
+    "keyboard_key_width": 104,
+    "keyboard_key_height": 48,
+    "donation_image_size": 168,
+    "donation_title_font_multiplier": 2,
+    "editor_minimum_width": 100,
+    "editor_minimum_height_lines": 3,
+    "caret_width_multiplier": 2,
+    "line_height_fallback_factor": 1,
+    "color_hex_digits": 8,
+    "color_hex_base": 16,
+    "color_bits": 32,
+    "color_red_shift": 24,
+    "color_green_shift": 16,
+    "color_blue_shift": 8,
+    "numeric_base_hex": 16,
+    "unicode_scalar_bit_size": 32,
+    "language_preview_characters": 3
+  },
+  "preferences": {
+    "font_size": "font_size",
+    "split_offset": "split_offset",
+    "right_to_left": "right_to_left",
+    "custom_font_name": "custom_font_name",
+    "custom_font_data": "custom_font_data",
+    "theme": "theme"
+  },
+  "theme_options": [
+    "Metallic Dark",
+    "Metallic Light",
+    "System"
+  ],
+  "font_size_options": [
+    "Small",
+    "Medium",
+    "Large"
+  ],
+  "right_to_left_default": true,
+  "theme_palettes": {
+    "Metallic Dark": {
+      "variant": "dark",
+      "background": "#20252AFF",
+      "input": "#15191DFF",
+      "button": "#384047FF",
+      "primary": "#75B5D1FF",
+      "foreground": "#E5E9ECFF",
+      "hover": "#4A555EFF",
+      "border": "#4D5963FF"
+    },
+    "Metallic Light": {
+      "variant": "light",
+      "background": "#D8DCE0FF",
+      "input": "#F1F3F5FF",
+      "button": "#C1C8CEFF",
+      "primary": "#3F7591FF",
+      "foreground": "#192228FF",
+      "border": "#9AA4ACFF"
+    },
+    "System": {
+      "variant": "system"
+    }
+  },
+  "excluded_unicode_scripts": [
+    "Common",
+    "Inherited"
+  ],
+  "language_name_replacements": [
+    [
+      "_",
+      " "
+    ]
+  ],
+  "language_normalization_replacements": [
+    [
+      " ",
+      ""
+    ],
+    [
+      "-",
+      ""
+    ],
+    [
+      "_",
+      ""
+    ],
+    [
+      "'",
+      ""
+    ]
+  ]
+}

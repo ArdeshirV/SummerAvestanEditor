@@ -1,0 +1,589 @@
+#include "mainwindow.h"
+
+#include "config.h"
+#include "editor.h"
+#include "keyboard.h"
+#include "theme.h"
+#include "unicode_util.h"
+
+#include <QAction>
+#include <QApplication>
+#include <QCheckBox>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFile>
+#include <QFileDialog>
+#include <QFontDatabase>
+#include <QFontMetrics>
+#include <QHBoxLayout>
+#include <QIcon>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QPixmap>
+#include <QSettings>
+#include <QSplitter>
+#include <QStatusBar>
+#include <QTextDocument>
+#include <QVBoxLayout>
+
+namespace {
+
+QString preference(const QString &key)
+{
+    return Config::instance().preference(key);
+}
+
+QSettings applicationSettings()
+{
+    return QSettings();
+}
+
+// A dialog that can also be dismissed with Escape, Return or the keypad Enter.
+class DismissibleDialog : public QDialog {
+public:
+    using QDialog::QDialog;
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override
+    {
+        if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Return
+            || event->key() == Qt::Key_Enter) {
+            accept();
+            return;
+        }
+        QDialog::keyPressEvent(event);
+    }
+};
+
+} // namespace
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+{
+    buildUi();
+    applyPreferences();
+}
+
+void MainWindow::buildUi()
+{
+    const Config &config = Config::instance();
+
+    m_editor = new Editor(this);
+    m_editor->setPlaceholderText(config.string(QStringLiteral("placeholder")));
+    connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
+        if (!m_loading) {
+            setDirty(true);
+        }
+    });
+
+    m_keyboard = new KeyboardPanel(m_editor, this);
+
+    m_splitter = new QSplitter(Qt::Vertical, this);
+    m_splitter->addWidget(m_editor);
+    m_splitter->addWidget(m_keyboard);
+    m_splitter->setChildrenCollapsible(false);
+
+    // Top bar: actions on the left, the RTL checkbox right after About, Exit on
+    // the far right.
+    auto *topBar = new QWidget(this);
+    topBar->setObjectName(QStringLiteral("TopBar"));
+    auto *topLayout = new QHBoxLayout(topBar);
+    topLayout->setContentsMargins(6, 4, 6, 4);
+    topLayout->setSpacing(6);
+
+    auto *openAction = new QAction(config.string(QStringLiteral("open")), this);
+    openAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_O));
+    auto *saveAction = new QAction(config.string(QStringLiteral("save")), this);
+    saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
+    auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
+    saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
+    auto *aboutAction = new QAction(config.string(QStringLiteral("about")), this);
+    aboutAction->setShortcut(QKeySequence(Qt::Key_F1));
+    auto *exitAction = new QAction(config.string(QStringLiteral("exit")), this);
+    exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
+
+    addAction(openAction);
+    addAction(saveAction);
+    addAction(saveAsAction);
+    addAction(aboutAction);
+    addAction(exitAction);
+
+    connect(openAction, &QAction::triggered, this, &MainWindow::openDocument);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
+    connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
+    connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+    connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
+
+    topLayout->addWidget(new QPushButton(openAction->text(), topBar));
+    topLayout->addWidget(new QPushButton(saveAction->text(), topBar));
+    topLayout->addWidget(new QPushButton(saveAsAction->text(), topBar));
+    topLayout->addWidget(new QPushButton(settingsAction->text(), topBar));
+    topLayout->addWidget(new QPushButton(aboutAction->text(), topBar));
+
+    m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), topBar);
+    topLayout->addWidget(m_rtlCheck);
+    topLayout->addStretch(1);
+
+    auto *exitButton = new QPushButton(exitAction->text(), topBar);
+    topLayout->addWidget(exitButton);
+
+    // Wire buttons to the same actions so keyboard and click share one path.
+    const auto buttons = topBar->findChildren<QPushButton *>();
+    const QList<QAction *> actionOrder = {openAction, saveAction, saveAsAction,
+                                          settingsAction, aboutAction, exitAction};
+    for (int index = 0; index < actionOrder.size() && index < buttons.size(); ++index) {
+        connect(buttons.at(index), &QPushButton::clicked, actionOrder.at(index),
+                &QAction::trigger);
+    }
+    connect(m_rtlCheck, &QCheckBox::toggled, this, &MainWindow::toggleRightToLeft);
+
+    auto *central = new QWidget(this);
+    auto *centralLayout = new QVBoxLayout(central);
+    centralLayout->setContentsMargins(0, 0, 0, 0);
+    centralLayout->setSpacing(0);
+    centralLayout->addWidget(topBar);
+    centralLayout->addWidget(m_splitter, 1);
+    setCentralWidget(central);
+
+    m_status = new QLabel(config.string(QStringLiteral("empty")), this);
+    statusBar()->addWidget(m_status);
+
+    setWindowTitle(config.appName());
+    setWindowIcon(QIcon(QStringLiteral(":/Icon.png")));
+    resize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
+           static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
+}
+
+void MainWindow::applyPreferences()
+{
+    const Config &config = Config::instance();
+    QSettings settings = applicationSettings();
+
+    // Bundled font is always registered; the custom font is restored from the
+    // base64 data saved in preferences so it survives restarts.
+    const int bundledId = QFontDatabase::addApplicationFont(
+        QStringLiteral(":/assets/fonts/UnicodeScriptFallback.ttf"));
+    if (bundledId >= 0) {
+        const QStringList families = QFontDatabase::applicationFontFamilies(bundledId);
+        if (!families.isEmpty()) {
+            m_bundledFamily = families.first();
+        }
+    }
+    const QString encoded = settings.value(preference(QStringLiteral("custom_font_data"))).toString();
+    if (!encoded.isEmpty()) {
+        const QByteArray data = QByteArray::fromBase64(encoded.toLatin1());
+        const int customId = QFontDatabase::addApplicationFontFromData(data);
+        if (customId >= 0) {
+            const QStringList families = QFontDatabase::applicationFontFamilies(customId);
+            if (!families.isEmpty()) {
+                m_customFamily = families.first();
+            }
+        }
+    }
+
+    applyTheme();
+    applyEditorFont();
+
+    m_rtlCheck->setChecked(
+        settings.value(preference(QStringLiteral("right_to_left")), config.rtlDefault()).toBool());
+    m_editor->setRightToLeft(m_rtlCheck->isChecked());
+
+    const double editorFraction =
+        settings.value(preference(QStringLiteral("split_offset")),
+                       config.number(QStringLiteral("default_editor_fraction")))
+            .toDouble();
+    m_editorFraction = editorFraction;
+    m_splitterReady = false;
+
+    setCurrentDocument(QString(), TextEncoding::Utf8);
+    setDirty(false);
+}
+
+void MainWindow::applyTheme()
+{
+    const Config &config = Config::instance();
+    QSettings settings = applicationSettings();
+    const QString themeName =
+        settings.value(preference(QStringLiteral("theme")), config.string(QStringLiteral("theme_dark")))
+            .toString();
+    Theme::apply(*qApp, config, themeName);
+}
+
+void MainWindow::applyEditorFont()
+{
+    const Config &config = Config::instance();
+    QSettings settings = applicationSettings();
+    const QString choice =
+        settings.value(preference(QStringLiteral("font_size")), config.string(QStringLiteral("font_size_medium")))
+            .toString();
+
+    double scale = config.number(QStringLiteral("font_scale_medium"));
+    if (choice == config.string(QStringLiteral("font_size_small"))) {
+        scale = config.number(QStringLiteral("font_scale_small"));
+    } else if (choice == config.string(QStringLiteral("font_size_large"))) {
+        scale = config.number(QStringLiteral("font_scale_large"));
+    }
+
+    QFont font = m_editor->font();
+    const QString family = m_customFamily.isEmpty() ? m_bundledFamily : m_customFamily;
+    if (!family.isEmpty()) {
+        font.setFamily(family);
+    }
+    font.setPointSizeF(config.number(QStringLiteral("editor_base_font_point_size")) * scale);
+    m_editor->setFont(font);
+}
+
+void MainWindow::setCurrentDocument(const QString &path, TextEncoding encoding)
+{
+    m_currentPath = path;
+    m_encoding = encoding;
+    updateStatus();
+}
+
+void MainWindow::setDirty(bool dirty)
+{
+    if (m_dirty == dirty) {
+        return;
+    }
+    m_dirty = dirty;
+    m_editor->document()->setModified(dirty);
+    updateStatus();
+}
+
+void MainWindow::updateStatus()
+{
+    const Config &config = Config::instance();
+    QString name = config.string(QStringLiteral("untitled"));
+    if (!m_currentPath.isEmpty()) {
+        name = QFileInfo(m_currentPath).fileName();
+    }
+    const QString marker = m_dirty ? config.string(QStringLiteral("dirty_marker"))
+                                   : config.string(QStringLiteral("empty"));
+    const int codePoints = codePointCount(m_editor->toPlainText());
+    const QByteArray format = config.string(QStringLiteral("status_format")).toUtf8();
+    const QByteArray nameBytes = name.toUtf8();
+    const QByteArray markerBytes = marker.toUtf8();
+    const QByteArray encodingBytes = encodingName(m_encoding).toUtf8();
+    const QByteArray versionBytes = config.string(QStringLiteral("unicode_data_version")).toUtf8();
+    m_status->setText(QString::asprintf(format.constData(), nameBytes.constData(),
+                                       markerBytes.constData(), encodingBytes.constData(),
+                                       versionBytes.constData(), codePoints));
+}
+
+void MainWindow::toggleRightToLeft(bool enabled)
+{
+    QSettings settings = applicationSettings();
+    settings.setValue(preference(QStringLiteral("right_to_left")), enabled);
+    m_editor->setRightToLeft(enabled);
+    m_editor->setFocus();
+}
+
+void MainWindow::openDocument()
+{
+    const Config &config = Config::instance();
+    const QString path = QFileDialog::getOpenFileName(
+        this, config.string(QStringLiteral("open")), m_currentPath,
+        config.string(QStringLiteral("document_filter")));
+    if (path.isEmpty()) {
+        return;
+    }
+
+    QString text;
+    TextEncoding encoding = TextEncoding::Utf8;
+    QString error;
+    if (!readDocumentFile(path, text, encoding, error)) {
+        QMessageBox::critical(this, config.string(QStringLiteral("open")), error);
+        return;
+    }
+
+    m_loading = true;
+    m_editor->setPlainText(text);
+    m_loading = false;
+    setCurrentDocument(path, encoding);
+    setDirty(false);
+    m_editor->setFocus();
+}
+
+void MainWindow::saveDocument()
+{
+    if (m_currentPath.isEmpty()) {
+        saveDocumentAs();
+        return;
+    }
+    writeToPath(m_currentPath);
+}
+
+void MainWindow::saveDocumentAs()
+{
+    const Config &config = Config::instance();
+    const QString path = QFileDialog::getSaveFileName(
+        this, config.string(QStringLiteral("save_as")),
+        m_currentPath.isEmpty() ? config.string(QStringLiteral("untitled_filename")) : m_currentPath,
+        config.string(QStringLiteral("document_filter")));
+    if (path.isEmpty()) {
+        return;
+    }
+    writeToPath(path);
+}
+
+bool MainWindow::writeToPath(const QString &path)
+{
+    const Config &config = Config::instance();
+    QString error;
+    if (!writeDocumentFile(path, m_editor->toPlainText(), m_encoding, error)) {
+        QMessageBox::critical(this, config.string(QStringLiteral("save")), error);
+        return false;
+    }
+    setCurrentDocument(path, m_encoding);
+    setDirty(false);
+    return true;
+}
+
+void MainWindow::showSettingsDialog()
+{
+    const Config &config = Config::instance();
+    QSettings settings = applicationSettings();
+
+    DismissibleDialog dialog(this);
+    dialog.setWindowTitle(config.string(QStringLiteral("settings")));
+    auto *layout = new QVBoxLayout(&dialog);
+
+    // Theme label and selector on one horizontal row.
+    auto *themeRow = new QHBoxLayout();
+    themeRow->addWidget(new QLabel(config.string(QStringLiteral("theme_settings_label")), &dialog));
+    auto *themeSelect = new QComboBox(&dialog);
+    themeSelect->addItems(config.themeOptions());
+    themeSelect->setCurrentText(
+        settings.value(preference(QStringLiteral("theme")), config.string(QStringLiteral("theme_dark")))
+            .toString());
+    themeRow->addWidget(themeSelect, 1);
+    layout->addLayout(themeRow);
+
+    // Text size label and selector on another horizontal row.
+    auto *sizeRow = new QHBoxLayout();
+    sizeRow->addWidget(new QLabel(config.string(QStringLiteral("font_settings_label")), &dialog));
+    auto *sizeSelect = new QComboBox(&dialog);
+    sizeSelect->addItems(config.fontSizeOptions());
+    sizeSelect->setCurrentText(
+        settings.value(preference(QStringLiteral("font_size")), config.string(QStringLiteral("font_size_medium")))
+            .toString());
+    sizeRow->addWidget(sizeSelect, 1);
+    layout->addLayout(sizeRow);
+
+    // "Font" label above a horizontal row of the two font buttons.
+    layout->addWidget(new QLabel(config.string(QStringLiteral("font")), &dialog));
+    auto *fontRow = new QHBoxLayout();
+    auto *fontFileButton = new QPushButton(config.string(QStringLiteral("font_file_button")), &dialog);
+    auto *bundledButton = new QPushButton(config.string(QStringLiteral("font_bundled_button")), &dialog);
+    fontRow->addWidget(fontFileButton);
+    fontRow->addWidget(bundledButton);
+    fontRow->addStretch(1);
+    layout->addLayout(fontRow);
+
+    // One blank line before the Close button.
+    const int lineHeight = QFontMetrics(dialog.font()).height();
+    layout->addSpacing(lineHeight);
+
+    auto *closeButton = new QPushButton(config.string(QStringLiteral("settings_close")), &dialog);
+    closeButton->setMinimumWidth(static_cast<int>(closeButton->sizeHint().width()
+                                                  * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
+    layout->addWidget(closeButton, 0, Qt::AlignRight);
+
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    connect(themeSelect, &QComboBox::currentTextChanged, this, [this](const QString &value) {
+        QSettings local = applicationSettings();
+        local.setValue(preference(QStringLiteral("theme")), value);
+        applyTheme();
+    });
+    connect(sizeSelect, &QComboBox::currentTextChanged, this, [this](const QString &value) {
+        QSettings local = applicationSettings();
+        local.setValue(preference(QStringLiteral("font_size")), value);
+        applyEditorFont();
+    });
+    connect(fontFileButton, &QPushButton::clicked, this, [this]() {
+        const Config &local = Config::instance();
+        const QString path = QFileDialog::getOpenFileName(
+            this, local.string(QStringLiteral("font")), QString(),
+            local.string(QStringLiteral("font_filter")));
+        if (path.isEmpty()) {
+            return;
+        }
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            QMessageBox::critical(this, local.string(QStringLiteral("font")), file.errorString());
+            return;
+        }
+        const QByteArray data = file.readAll();
+        const qint64 limit = static_cast<qint64>(local.number(QStringLiteral("default_font_file_limit_mib"))
+                                                 * local.number(QStringLiteral("bytes_per_mib")));
+        if (data.size() > limit) {
+            const QByteArray format = local.string(QStringLiteral("font_file_too_large")).toUtf8();
+            QMessageBox::critical(
+                this, local.string(QStringLiteral("font")),
+                QString::asprintf(format.constData(),
+                                  static_cast<int>(local.number(QStringLiteral("default_font_file_limit_mib")))));
+            return;
+        }
+        const int fontId = QFontDatabase::addApplicationFontFromData(data);
+        if (fontId < 0) {
+            QString message = local.string(QStringLiteral("font_file_invalid"));
+            message.replace(QStringLiteral("%w"), QString());
+            QMessageBox::critical(this, local.string(QStringLiteral("font")), message);
+            return;
+        }
+        const QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+        m_customFamily = families.isEmpty() ? QString() : families.first();
+        QSettings localSettings = applicationSettings();
+        localSettings.setValue(preference(QStringLiteral("custom_font_name")), QFileInfo(path).fileName());
+        localSettings.setValue(preference(QStringLiteral("custom_font_data")), data.toBase64());
+        applyEditorFont();
+    });
+    connect(bundledButton, &QPushButton::clicked, this, [this]() {
+        QSettings localSettings = applicationSettings();
+        localSettings.setValue(preference(QStringLiteral("custom_font_name")), QString());
+        localSettings.setValue(preference(QStringLiteral("custom_font_data")), QString());
+        m_customFamily.clear();
+        applyEditorFont();
+    });
+
+    dialog.exec();
+}
+
+void MainWindow::showAboutDialog()
+{
+    const Config &config = Config::instance();
+
+    DismissibleDialog dialog(this);
+    dialog.setWindowTitle(config.string(QStringLiteral("about_dialog_title")));
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *icon = new QLabel(&dialog);
+    const int iconSize = static_cast<int>(config.number(QStringLiteral("about_icon_size")));
+    icon->setPixmap(QPixmap(QStringLiteral(":/Icon.png"))
+                        .scaled(iconSize, iconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    auto *name = new QLabel(config.appName(), &dialog);
+    QFont nameFont = name->font();
+    nameFont.setPointSizeF(nameFont.pointSizeF() * config.number(QStringLiteral("about_name_font_multiplier")));
+    nameFont.setBold(true);
+    name->setFont(nameFont);
+
+    auto *version = new QLabel(config.appVersion(), &dialog);
+
+    auto *headerText = new QVBoxLayout();
+    headerText->addWidget(name);
+    headerText->addWidget(version);
+
+    auto *header = new QHBoxLayout();
+    header->addWidget(icon);
+    header->addLayout(headerText);
+    header->addStretch(1);
+    layout->addLayout(header);
+
+    // Render the author handle inside the copyright line as a link to the
+    // project's author page.
+    QString copyright = config.copyright().toHtmlEscaped();
+    const QString handle = config.authorHandle();
+    if (!handle.isEmpty()) {
+        const int handleIndex = copyright.indexOf(handle.toHtmlEscaped());
+        if (handleIndex >= 0) {
+            const QString anchor = QStringLiteral("<a href=\"%1\">%2</a>")
+                                       .arg(config.authorUrl().toHtmlEscaped(),
+                                            handle.toHtmlEscaped());
+            copyright.replace(handleIndex, handle.toHtmlEscaped().size(), anchor);
+        }
+    }
+    auto *copyrightLabel = new QLabel(copyright, &dialog);
+    copyrightLabel->setOpenExternalLinks(true);
+    copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    layout->addWidget(copyrightLabel);
+
+    auto *link = new QLabel(
+        QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
+    link->setOpenExternalLinks(true);
+    link->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    layout->addWidget(link);
+
+    layout->addSpacing(QFontMetrics(dialog.font()).height());
+
+    auto *closeButton = new QPushButton(config.string(QStringLiteral("close")), &dialog);
+    closeButton->setMinimumWidth(static_cast<int>(closeButton->sizeHint().width()
+                                                  * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
+    layout->addWidget(closeButton, 0, Qt::AlignRight);
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.exec();
+}
+
+void MainWindow::requestExit()
+{
+    close();
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+    if (m_splitterReady) {
+        return;
+    }
+    m_splitterReady = true;
+    const int total = qMax(2, m_splitter->height());
+    const int editorSize =
+        qBound(1, static_cast<int>(total * m_editorFraction), total - 1);
+    m_splitter->setSizes({editorSize, total - editorSize});
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (!m_dirty) {
+        QSettings settings = applicationSettings();
+        const double fraction = static_cast<double>(m_splitter->sizes().value(0))
+            / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
+        settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+        event->accept();
+        return;
+    }
+
+    const Config &config = Config::instance();
+    QMessageBox confirmation(this);
+    confirmation.setWindowTitle(config.string(QStringLiteral("save_changes_title")));
+    confirmation.setText(config.string(QStringLiteral("save_changes_message")));
+    confirmation.setStandardButtons(QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+    confirmation.setDefaultButton(QMessageBox::Cancel);
+
+    switch (confirmation.exec()) {
+    case QMessageBox::Yes:
+        if (m_currentPath.isEmpty()) {
+            const QString path = QFileDialog::getSaveFileName(
+                this, config.string(QStringLiteral("save_as")),
+                config.string(QStringLiteral("untitled_filename")),
+                config.string(QStringLiteral("document_filter")));
+            if (path.isEmpty() || !writeToPath(path)) {
+                event->ignore();
+                return;
+            }
+        } else if (!writeToPath(m_currentPath)) {
+            event->ignore();
+            return;
+        }
+        break;
+    case QMessageBox::No:
+        break;
+    case QMessageBox::Cancel:
+    default:
+        event->ignore();
+        return;
+    }
+
+    QSettings settings = applicationSettings();
+    const double fraction = static_cast<double>(m_splitter->sizes().value(0))
+        / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
+    settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+    event->accept();
+}

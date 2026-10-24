@@ -1,0 +1,60 @@
+#ifndef AVESTAN_MAINWINDOW_H
+#define AVESTAN_MAINWINDOW_H
+
+#include <QMainWindow>
+
+#include "document.h"
+
+class Editor;
+class KeyboardPanel;
+class QCheckBox;
+class QLabel;
+class QSplitter;
+
+class MainWindow : public QMainWindow {
+    Q_OBJECT
+
+public:
+    explicit MainWindow(QWidget *parent = nullptr);
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+
+private slots:
+    void openDocument();
+    void saveDocument();
+    void saveDocumentAs();
+    void showSettingsDialog();
+    void showAboutDialog();
+    void toggleRightToLeft(bool enabled);
+    void updateStatus();
+
+private:
+    void buildUi();
+    void applyPreferences();
+    void applyTheme();
+    void applyEditorFont();
+    void setDirty(bool dirty);
+    void setCurrentDocument(const QString &path, TextEncoding encoding);
+    bool writeToPath(const QString &path);
+    void requestExit();
+
+    Editor *m_editor = nullptr;
+    KeyboardPanel *m_keyboard = nullptr;
+    QSplitter *m_splitter = nullptr;
+    QCheckBox *m_rtlCheck = nullptr;
+    QLabel *m_status = nullptr;
+
+    QString m_currentPath;
+    TextEncoding m_encoding = TextEncoding::Utf8;
+    bool m_dirty = false;
+    bool m_loading = false;
+
+    QString m_bundledFamily;
+    QString m_customFamily;
+    double m_editorFraction = 0.3;
+    bool m_splitterReady = false;
+};
+
+#endif // AVESTAN_MAINWINDOW_H

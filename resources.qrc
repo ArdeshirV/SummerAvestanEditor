@@ -1,0 +1,13 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file>assets/app.json</file>
+        <file>assets/languages.json</file>
+        <file>assets/readings.json</file>
+        <file>assets/fonts/UnicodeScriptFallback.ttf</file>
+        <file>assets/fonts/FONT-SOURCES.txt</file>
+        <file>assets/fonts/LICENSE.txt</file>
+        <file>assets/ethereum-donation.png</file>
+        <file>Icon.png</file>
+    </qresource>
+</RCC>
