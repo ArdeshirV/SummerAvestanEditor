@@ -181,6 +181,35 @@ build:
 test:
 	bash ./tests/run-tests.sh
 
+# Run the built binary for the current host.
+# Set RUN_ARGS to pass extra arguments, e.g. make run RUN_ARGS="--help"
+# Set QT_QPA_PLATFORM to force a platform plugin (xcb, wayland, offscreen).
+# Set QT_LOGGING_RULES to control Qt debug output.
+RUN_BIN ?= $(DIST)/$(APP)-$(if $(filter yes,$(IS_TERMUX)),Termux,Linux)-$(HOST_ARCH)
+
+# Auto-detect the best Qt platform plugin for the host.
+QT_QPA_PLATFORM = $(shell \
+	if [ -n "$$WAYLAND_DISPLAY" ]; then \
+		echo wayland; \
+	elif [ -n "$$DISPLAY" ]; then \
+		echo xcb; \
+	else \
+		echo offscreen; \
+	fi)
+
+run:
+	@test -f "$(RUN_BIN)" \
+		|| { echo "error: $(RUN_BIN) not found. Build first: make linux-amd64"; exit 1; }
+	@echo ">>> Running $(RUN_BIN) [QT_QPA_PLATFORM=$(QT_QPA_PLATFORM)]"
+	@QT_QPA_PLATFORM="$(QT_QPA_PLATFORM)" $(RUN_BIN) $(RUN_ARGS)
+
+# Run with verbose Qt logging for troubleshooting.
+run-debug:
+	@test -f "$(RUN_BIN)" \
+		|| { echo "error: $(RUN_BIN) not found. Build first: make linux-amd64"; exit 1; }
+	@echo ">>> Running $(RUN_BIN) with debug logging"
+	@QT_QPA_PLATFORM="$(QT_QPA_PLATFORM)" QT_LOGGING_RULES="*.debug=true" $(RUN_BIN) $(RUN_ARGS)
+
 clean:
 	rm -rf "$(DIST)" tests/build build-qmake
 
@@ -193,6 +222,8 @@ help:
 	@echo "  make windows         Windows .exe      ($(WINDOWS_QMAKE))"
 	@echo "  make android         Android .apk      ($(ANDROID_QMAKE))"
 	@echo "  make test            run regression tests"
+	@echo "  make run             run the built binary"
+	@echo "  make run-debug       run with verbose Qt logging"
 	@echo "  make clean           remove dist/ and test builds"
 	@echo ""
 	@echo "  Architecture: linux-amd64 linux-arm64 linux-386;"
