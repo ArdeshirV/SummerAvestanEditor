@@ -259,8 +259,41 @@ QString Config::phoneticFor(const QString &languageName, uint codePoint) const
             }
         }
     }
-    return QString::asprintf(string(QStringLiteral("phonetic_unknown_format")).toUtf8().constData(),
-                             codePoint);
+    loadUnicodePronunciations();
+    const QString generated = m_unicodePronunciations.value(codePoint);
+    if (!generated.isEmpty()) {
+        return generated;
+    }
+    const QString name = unicodeCharacterName(codePoint);
+    return name.isEmpty() ? string(QStringLiteral("phonetic_unknown_format")) : name.toLower();
+}
+
+void Config::loadUnicodePronunciations() const
+{
+    if (m_unicodePronunciationsLoaded) {
+        return;
+    }
+    m_unicodePronunciationsLoaded = true;
+    QFile file(QStringLiteral(":/assets/unicode_pronunciations.tsv"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    while (!file.atEnd()) {
+        const QByteArray line = file.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+        const qsizetype tab = line.indexOf('\t');
+        if (tab <= 0) {
+            continue;
+        }
+        bool ok = false;
+        const uint codePoint = line.left(tab).toUInt(&ok, 16);
+        if (ok) {
+            m_unicodePronunciations.insert(codePoint,
+                QString::fromUtf8(line.constData() + tab + 1, line.size() - tab - 1));
+        }
+    }
 }
 
 void Config::loadUnicodeNames() const

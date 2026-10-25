@@ -10,7 +10,7 @@ class TestConfig : public QObject {
 private slots:
     void languagesAreOrdered();
     void verifiedReadingsAreUsed();
-    void unknownReadingsFallBackToCodePoint();
+    void unknownReadingsFallBackToCharacterLabel();
     void unicodeCharacterNamesLoad();
     void charactersIncludeEveryPrintableAndSpace();
     void themePalettesLoad();
@@ -36,10 +36,12 @@ void TestConfig::verifiedReadingsAreUsed()
     QCOMPARE(config.phoneticFor(QStringLiteral("Ancient Persian"), 0x103A0), QStringLiteral("a"));
 }
 
-void TestConfig::unknownReadingsFallBackToCodePoint()
+void TestConfig::unknownReadingsFallBackToCharacterLabel()
 {
-    QCOMPARE(Config::instance().phoneticFor(QStringLiteral("Avesta"), 0x0041),
-             QStringLiteral("41"));
+    const Config &config = Config::instance();
+    QCOMPARE(config.phoneticFor(QStringLiteral("Avesta"), 0x0041), QStringLiteral("a"));
+    QCOMPARE(config.phoneticFor(QStringLiteral("Other"), 0x0031), QStringLiteral("one"));
+    QCOMPARE(config.phoneticFor(QStringLiteral("Other"), 0x10B00), QStringLiteral("a"));
 }
 
 void TestConfig::unicodeCharacterNamesLoad()

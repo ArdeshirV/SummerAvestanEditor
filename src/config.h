@@ -67,8 +67,8 @@ public:
     // Human readable option name including a script sample when available.
     QString languageOptionName(const LanguageDefinition &language) const;
 
-    // Verified reading for a character, or an uppercase hexadecimal code point
-    // when no source-backed reading exists.
+    // Source-backed reading or a best-effort spoken label derived from the
+    // Unicode character name. Verified readings take precedence.
     QString phoneticFor(const QString &languageName, uint codePoint) const;
     QString unicodeCharacterName(uint codePoint) const;
 
@@ -94,6 +94,7 @@ private:
     void loadLanguages(const QJsonObject &root);
     void loadReadings(const QJsonObject &root);
     void loadUnicodeNames() const;
+    void loadUnicodePronunciations() const;
 
     QMap<QString, QString> m_strings;
     QMap<QString, double> m_numbers;
@@ -108,6 +109,8 @@ private:
     mutable QHash<QString, QVector<uint>> m_characterCache;
     mutable QHash<uint, QString> m_unicodeNames;
     mutable bool m_unicodeNamesLoaded = false;
+    mutable QHash<uint, QString> m_unicodePronunciations;
+    mutable bool m_unicodePronunciationsLoaded = false;
 
     QString m_appId;
     QString m_appName;

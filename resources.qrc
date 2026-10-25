@@ -5,6 +5,7 @@
         <file>assets/languages.json</file>
         <file>assets/readings.json</file>
         <file>assets/unicode_names.tsv</file>
+        <file>assets/unicode_pronunciations.tsv</file>
         <file>assets/UNICODE-NAMES-SOURCE.txt</file>
         <file>assets/fonts/UnicodeScriptFallback.ttf</file>
         <file>assets/fonts/FONT-SOURCES.txt</file>

@@ -109,8 +109,11 @@ hexadecimal code point.
 Character enumeration and printability use the Unicode tables built into the
 Qt toolchain (`QChar`). Unicode names used for keyboard search are bundled from
 UCD 16.0.0 (`assets/unicode_names.tsv`); newly assigned names from later Unicode
-versions may be absent. The Unicode data version shown in the status bar is
-stored in `assets/app.json`.
+versions may be absent. Keys show verified readings where available, with
+best-effort spoken labels derived from Unicode character names for other
+characters. These fallback labels are descriptive and are not guaranteed
+pronunciations for every language or script. The Unicode data version shown in
+the status bar is stored in `assets/app.json`.
 
 ## Readings
 
@@ -125,10 +128,11 @@ scripts in `assets/readings.json`:
 | Pahlavi | U+10B60–U+10B72 | 19 letters |
 
 Logograms, numbers, and punctuation have named entries (for example Ancient
-Persian `U+103D1` = “one”). Any character without a verified reading is shown
-with its hexadecimal code point (`U+XXXX`) instead of an invented
-pronunciation. See [READINGS.md](READINGS.md) for sources, coverage, and
-limitations.
+Persian `U+103D1` = “one”). Verified readings take precedence; other keys use descriptive fallback labels
+derived from Unicode character names rather than hexadecimal code points. These
+fallbacks cannot provide reliable spoken pronunciations for every script, so
+community/source-backed reading data can be added over time. See
+[READINGS.md](READINGS.md) for sources, coverage, and limitations.
 
 ## Settings and appearance
 
