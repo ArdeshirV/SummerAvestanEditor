@@ -4,13 +4,15 @@
 #include <QByteArray>
 #include <QString>
 
-// Document encodings supported for open and save. A byte-order mark selects
-// UTF-16 when present; otherwise the file is treated as UTF-8.
+// Document encodings supported for open and save. UTF-16/UTF-32 byte-order
+// marks are detected; unmarked files are treated as UTF-8.
 enum class TextEncoding {
     Utf8,
     Utf8Bom,
     Utf16LE,
     Utf16BE,
+    Utf32LE,
+    Utf32BE,
 };
 
 QString encodingName(TextEncoding encoding);

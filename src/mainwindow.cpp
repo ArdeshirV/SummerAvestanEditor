@@ -13,21 +13,29 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPixmap>
+#include <QSaveFile>
 #include <QSettings>
 #include <QSplitter>
+#include <QStandardPaths>
 #include <QStatusBar>
+#include <QTextCursor>
 #include <QTextDocument>
+#include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
@@ -64,6 +72,9 @@ protected:
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    m_recoveryPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/recovery.txt");
+    QDir().mkpath(QFileInfo(m_recoveryPath).absolutePath());
     buildUi();
     applyPreferences();
 }
@@ -74,13 +85,21 @@ void MainWindow::buildUi()
 
     m_editor = new Editor(this);
     m_editor->setPlaceholderText(config.string(QStringLiteral("placeholder")));
+    m_recoveryTimer = new QTimer(this);
+    m_recoveryTimer->setSingleShot(true);
+    m_recoveryTimer->setInterval(1500);
+    connect(m_recoveryTimer, &QTimer::timeout, this, &MainWindow::saveRecoveryDraft);
     connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
         if (!m_loading) {
             setDirty(true);
+            if (applicationSettings().value(QStringLiteral("autosave_enabled"), true).toBool()) {
+                m_recoveryTimer->start();
+            }
         }
     });
 
     m_keyboard = new KeyboardPanel(m_editor, this);
+    QComboBox *languageSelect = m_keyboard->takeLanguageSelector();
 
     m_splitter = new QSplitter(Qt::Vertical, this);
     m_splitter->addWidget(m_editor);
@@ -101,6 +120,8 @@ void MainWindow::buildUi()
     saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
     auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
     saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    auto *insertCodePointAction = new QAction(QStringLiteral("Insert U+…"), this);
+    insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
     auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
     auto *aboutAction = new QAction(config.string(QStringLiteral("about")), this);
     aboutAction->setShortcut(QKeySequence(Qt::Key_F1));
@@ -110,12 +131,14 @@ void MainWindow::buildUi()
     addAction(openAction);
     addAction(saveAction);
     addAction(saveAsAction);
+    addAction(insertCodePointAction);
     addAction(aboutAction);
     addAction(exitAction);
 
     connect(openAction, &QAction::triggered, this, &MainWindow::openDocument);
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
+    connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
     connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
     connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
@@ -123,11 +146,16 @@ void MainWindow::buildUi()
     topLayout->addWidget(new QPushButton(openAction->text(), topBar));
     topLayout->addWidget(new QPushButton(saveAction->text(), topBar));
     topLayout->addWidget(new QPushButton(saveAsAction->text(), topBar));
+    topLayout->addWidget(new QPushButton(insertCodePointAction->text(), topBar));
     topLayout->addWidget(new QPushButton(settingsAction->text(), topBar));
     topLayout->addWidget(new QPushButton(aboutAction->text(), topBar));
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), topBar);
     topLayout->addWidget(m_rtlCheck);
+    m_keyboardToggle = new QToolButton(topBar);
+    m_keyboardToggle->setText(QStringLiteral("Hide keyboard"));
+    m_keyboardToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    topLayout->addWidget(m_keyboardToggle);
     topLayout->addStretch(1);
 
     auto *exitButton = new QPushButton(exitAction->text(), topBar);
@@ -136,18 +164,29 @@ void MainWindow::buildUi()
     // Wire buttons to the same actions so keyboard and click share one path.
     const auto buttons = topBar->findChildren<QPushButton *>();
     const QList<QAction *> actionOrder = {openAction, saveAction, saveAsAction,
-                                          settingsAction, aboutAction, exitAction};
+                                          insertCodePointAction, settingsAction, aboutAction, exitAction};
     for (int index = 0; index < actionOrder.size() && index < buttons.size(); ++index) {
         connect(buttons.at(index), &QPushButton::clicked, actionOrder.at(index),
                 &QAction::trigger);
     }
     connect(m_rtlCheck, &QCheckBox::toggled, this, &MainWindow::toggleRightToLeft);
+    connect(languageSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [](int index) {
+                applicationSettings().setValue(QStringLiteral("last_language"), index);
+            });
+    connect(m_keyboardToggle, &QToolButton::clicked, this, &MainWindow::toggleKeyboard);
 
     auto *central = new QWidget(this);
     auto *centralLayout = new QVBoxLayout(central);
     centralLayout->setContentsMargins(0, 0, 0, 0);
     centralLayout->setSpacing(0);
     centralLayout->addWidget(topBar);
+    auto *languageBar = new QWidget(central);
+    auto *languageLayout = new QHBoxLayout(languageBar);
+    languageLayout->setContentsMargins(8, 3, 8, 3);
+    languageLayout->addWidget(new QLabel(config.string(QStringLiteral("language")), languageBar));
+    languageLayout->addWidget(languageSelect, 1);
+    centralLayout->addWidget(languageBar);
     centralLayout->addWidget(m_splitter, 1);
     setCentralWidget(central);
 
@@ -193,6 +232,7 @@ void MainWindow::applyPreferences()
     m_rtlCheck->setChecked(
         settings.value(preference(QStringLiteral("right_to_left")), config.rtlDefault()).toBool());
     m_editor->setRightToLeft(m_rtlCheck->isChecked());
+    m_keyboard->setLanguage(settings.value(QStringLiteral("last_language"), 0).toInt());
 
     const double editorFraction =
         settings.value(preference(QStringLiteral("split_offset")),
@@ -243,7 +283,146 @@ void MainWindow::setCurrentDocument(const QString &path, TextEncoding encoding)
 {
     m_currentPath = path;
     m_encoding = encoding;
+    if (!path.isEmpty()) {
+        applicationSettings().setValue(QStringLiteral("last_session_path"), path);
+    }
     updateStatus();
+}
+
+void MainWindow::saveRecoveryDraft()
+{
+    if (!applicationSettings().value(QStringLiteral("autosave_enabled"), true).toBool()) {
+        return;
+    }
+    QSaveFile file(m_recoveryPath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return;
+    }
+    const QByteArray data = encodeDocument(m_editor->toPlainText(), TextEncoding::Utf8Bom);
+    if (file.write(data) != data.size() || !file.commit()) {
+        file.cancelWriting();
+        return;
+    }
+    QSettings settings = applicationSettings();
+    settings.setValue(QStringLiteral("recovery_path"), m_currentPath);
+    settings.setValue(QStringLiteral("recovery_encoding"), static_cast<int>(m_encoding));
+    settings.setValue(QStringLiteral("recovery_cursor"), m_editor->textCursor().position());
+}
+
+void MainWindow::clearRecoveryDraft()
+{
+    m_recoveryTimer->stop();
+    QFile::remove(m_recoveryPath);
+    QSettings settings = applicationSettings();
+    settings.remove(QStringLiteral("recovery_path"));
+    settings.remove(QStringLiteral("recovery_encoding"));
+    settings.remove(QStringLiteral("recovery_cursor"));
+}
+
+void MainWindow::offerSessionRestore()
+{
+    if (m_restorePromptShown) {
+        return;
+    }
+    m_restorePromptShown = true;
+    QSettings settings = applicationSettings();
+
+    if (QFile::exists(m_recoveryPath)) {
+        const auto answer = QMessageBox::question(
+            this, QStringLiteral("Recover draft"),
+            QStringLiteral("An autosaved draft is available. Restore it?"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        if (answer == QMessageBox::Yes) {
+            QString text;
+            TextEncoding recoveryEncoding = TextEncoding::Utf8;
+            QString error;
+            if (readDocumentFile(m_recoveryPath, text, recoveryEncoding, error)) {
+                const int storedEncoding = settings.value(QStringLiteral("recovery_encoding"),
+                                                          static_cast<int>(TextEncoding::Utf8)).toInt();
+                if (storedEncoding >= static_cast<int>(TextEncoding::Utf8)
+                    && storedEncoding <= static_cast<int>(TextEncoding::Utf32BE)) {
+                    recoveryEncoding = static_cast<TextEncoding>(storedEncoding);
+                }
+                m_loading = true;
+                m_editor->setPlainText(text);
+                m_loading = false;
+                setCurrentDocument(settings.value(QStringLiteral("recovery_path")).toString(),
+                                   recoveryEncoding);
+                QTextCursor cursor = m_editor->textCursor();
+                cursor.setPosition(qBound(0, settings.value(QStringLiteral("recovery_cursor")).toInt(),
+                                          m_editor->document()->characterCount() - 1));
+                m_editor->setTextCursor(cursor);
+                setDirty(true);
+                return;
+            }
+            QMessageBox::warning(this, QStringLiteral("Recovery failed"), error);
+        }
+        clearRecoveryDraft();
+        return;
+    }
+
+    const QString lastPath = settings.value(QStringLiteral("last_session_path")).toString();
+    if (lastPath.isEmpty() || !QFile::exists(lastPath)) {
+        return;
+    }
+    if (QMessageBox::question(this, QStringLiteral("Restore session"),
+                              QStringLiteral("Reopen the last document?\n%1").arg(lastPath),
+                              QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes)
+        != QMessageBox::Yes) {
+        return;
+    }
+    QString text;
+    TextEncoding encoding = TextEncoding::Utf8;
+    QString error;
+    if (!readDocumentFile(lastPath, text, encoding, error)) {
+        QMessageBox::warning(this, QStringLiteral("Could not restore session"), error);
+        return;
+    }
+    m_loading = true;
+    m_editor->setPlainText(text);
+    m_loading = false;
+    setCurrentDocument(lastPath, encoding);
+    QTextCursor cursor = m_editor->textCursor();
+    cursor.setPosition(qBound(0, settings.value(QStringLiteral("last_session_cursor")).toInt(),
+                              m_editor->document()->characterCount() - 1));
+    m_editor->setTextCursor(cursor);
+    setDirty(false);
+}
+
+void MainWindow::toggleKeyboard()
+{
+    const bool showKeyboard = !m_keyboard->isVisible();
+    m_keyboard->setVisible(showKeyboard);
+    m_keyboardToggle->setText(showKeyboard ? QStringLiteral("Hide keyboard")
+                                           : QStringLiteral("Show keyboard"));
+    if (!showKeyboard) {
+        m_editor->setFocus();
+    }
+}
+
+void MainWindow::insertUnicodeCodePoint()
+{
+    bool accepted = false;
+    QString input = QInputDialog::getText(
+        this, QStringLiteral("Insert Unicode character"),
+        QStringLiteral("Enter a code point (for example U+10B00):"),
+        QLineEdit::Normal, QString(), &accepted).trimmed();
+    if (!accepted || input.isEmpty()) {
+        return;
+    }
+    if (input.startsWith(QStringLiteral("U+"), Qt::CaseInsensitive)) {
+        input.remove(0, 2);
+    } else if (input.startsWith(QStringLiteral("0x"), Qt::CaseInsensitive)) {
+        input.remove(0, 2);
+    }
+    bool valid = false;
+    const uint scalar = input.toUInt(&valid, 16);
+    if (!valid || scalar > 0x10FFFF || (scalar >= 0xD800 && scalar <= 0xDFFF)) {
+        QMessageBox::warning(this, QStringLiteral("Invalid code point"),
+                             QStringLiteral("Enter a valid Unicode scalar value in hexadecimal."));
+        return;
+    }
+    m_editor->insertTextAtCaret(codePointToString(scalar));
 }
 
 void MainWindow::setDirty(bool dirty)
@@ -307,6 +486,7 @@ void MainWindow::openDocument()
     m_loading = false;
     setCurrentDocument(path, encoding);
     setDirty(false);
+    clearRecoveryDraft();
     m_editor->setFocus();
 }
 
@@ -342,6 +522,7 @@ bool MainWindow::writeToPath(const QString &path)
     }
     setCurrentDocument(path, m_encoding);
     setDirty(false);
+    clearRecoveryDraft();
     return true;
 }
 
@@ -353,6 +534,17 @@ void MainWindow::showSettingsDialog()
     DismissibleDialog dialog(this);
     dialog.setWindowTitle(config.string(QStringLiteral("settings")));
     auto *layout = new QVBoxLayout(&dialog);
+
+    auto *autosaveCheck = new QCheckBox(QStringLiteral("Autosave recovery draft"), &dialog);
+    autosaveCheck->setChecked(settings.value(QStringLiteral("autosave_enabled"), true).toBool());
+    layout->addWidget(autosaveCheck);
+    connect(autosaveCheck, &QCheckBox::toggled, this, [this](bool enabled) {
+        QSettings local = applicationSettings();
+        local.setValue(QStringLiteral("autosave_enabled"), enabled);
+        if (!enabled) {
+            clearRecoveryDraft();
+        }
+    });
 
     // Theme label and selector on one horizontal row.
     auto *themeRow = new QHBoxLayout();
@@ -385,6 +577,13 @@ void MainWindow::showSettingsDialog()
     fontRow->addWidget(bundledButton);
     fontRow->addStretch(1);
     layout->addLayout(fontRow);
+
+    auto *fontNote = new QLabel(
+        QStringLiteral("The bundled font covers many historic-script glyphs; shaping quality varies. "
+                       "For Avestan, choose a font with Avestan OpenType shaping support when available."),
+        &dialog);
+    fontNote->setWordWrap(true);
+    layout->addWidget(fontNote);
 
     // One blank line before the Close button.
     const int lineHeight = QFontMetrics(dialog.font()).height();
@@ -529,6 +728,9 @@ void MainWindow::requestExit()
 void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
+    if (!m_restorePromptShown) {
+        QTimer::singleShot(0, this, &MainWindow::offerSessionRestore);
+    }
     if (m_splitterReady) {
         return;
     }
@@ -546,6 +748,11 @@ void MainWindow::closeEvent(QCloseEvent *event)
         const double fraction = static_cast<double>(m_splitter->sizes().value(0))
             / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
         settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+        if (!m_currentPath.isEmpty()) {
+            settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
+            settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
+        }
+        clearRecoveryDraft();
         event->accept();
         return;
     }
@@ -585,5 +792,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
     const double fraction = static_cast<double>(m_splitter->sizes().value(0))
         / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
     settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+    if (!m_currentPath.isEmpty()) {
+        settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
+        settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
+    }
+    clearRecoveryDraft();
     event->accept();
 }

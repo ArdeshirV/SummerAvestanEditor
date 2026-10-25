@@ -13,6 +13,8 @@ constexpr uchar kBomUtf16LeLow = 0xFF;
 constexpr uchar kBomUtf16LeHigh = 0xFE;
 constexpr uchar kBomUtf16BeLow = 0xFE;
 constexpr uchar kBomUtf16BeHigh = 0xFF;
+constexpr uchar kBomUtf32Le[] = {0xFF, 0xFE, 0x00, 0x00};
+constexpr uchar kBomUtf32Be[] = {0x00, 0x00, 0xFE, 0xFF};
 
 QString codeUnitError(const QString &key, int index)
 {
@@ -61,6 +63,56 @@ QString decodeUtf16(const QByteArray &data, int offset, bool bigEndian, QString 
     return result;
 }
 
+QString decodeUtf32(const QByteArray &data, int offset, bool bigEndian, QString &error)
+{
+    const int remaining = data.size() - offset;
+    if (remaining % 4 != 0) {
+        error = QStringLiteral("UTF-32 file has an incomplete code unit");
+        return QString();
+    }
+
+    QString result;
+    for (int index = offset; index < data.size(); index += 4) {
+        const auto byte = [&data](int i) {
+            return static_cast<quint32>(static_cast<uchar>(data.at(i)));
+        };
+        quint32 scalar = 0;
+        if (bigEndian) {
+            scalar = (byte(index) << 24) | (byte(index + 1) << 16)
+                | (byte(index + 2) << 8) | byte(index + 3);
+        } else {
+            scalar = byte(index) | (byte(index + 1) << 8)
+                | (byte(index + 2) << 16) | (byte(index + 3) << 24);
+        }
+        if (scalar > 0x10FFFF || (scalar >= 0xD800 && scalar <= 0xDFFF)) {
+            error = QStringLiteral("UTF-32 file contains an invalid Unicode scalar at byte %1")
+                        .arg(index - offset);
+            return QString();
+        }
+        const char32_t value = static_cast<char32_t>(scalar);
+        result.append(QString::fromUcs4(&value, 1));
+    }
+    return result;
+}
+
+QByteArray encodeUtf32(const QString &text, bool bigEndian)
+{
+    const QVector<uint> scalars = text.toUcs4();
+    QByteArray data;
+    data.reserve(scalars.size() * 4 + 4);
+    const uchar *bom = bigEndian ? kBomUtf32Be : kBomUtf32Le;
+    for (int i = 0; i < 4; ++i) {
+        data.append(static_cast<char>(bom[i]));
+    }
+    for (uint scalar : scalars) {
+        for (int byte = 0; byte < 4; ++byte) {
+            const int shift = bigEndian ? (3 - byte) * 8 : byte * 8;
+            data.append(static_cast<char>((scalar >> shift) & 0xFF));
+        }
+    }
+    return data;
+}
+
 QByteArray encodeUtf16(const QString &text, bool bigEndian)
 {
     QByteArray data;
@@ -92,6 +144,10 @@ QString encodingName(TextEncoding encoding)
         return config.string(QStringLiteral("encoding_utf16_le"));
     case TextEncoding::Utf16BE:
         return config.string(QStringLiteral("encoding_utf16_be"));
+    case TextEncoding::Utf32LE:
+        return config.string(QStringLiteral("encoding_utf32_le"));
+    case TextEncoding::Utf32BE:
+        return config.string(QStringLiteral("encoding_utf32_be"));
     case TextEncoding::Utf8:
     default:
         return config.string(QStringLiteral("encoding_utf8"));
@@ -100,7 +156,32 @@ QString encodingName(TextEncoding encoding)
 
 bool decodeDocument(const QByteArray &data, QString &text, TextEncoding &encoding, QString &error)
 {
+    error.clear();
+    text.clear();
     const Config &config = Config::instance();
+    if (data.size() >= 4 && static_cast<uchar>(data.at(0)) == kBomUtf32Le[0]
+        && static_cast<uchar>(data.at(1)) == kBomUtf32Le[1]
+        && static_cast<uchar>(data.at(2)) == kBomUtf32Le[2]
+        && static_cast<uchar>(data.at(3)) == kBomUtf32Le[3]) {
+        text = decodeUtf32(data, 4, false, error);
+        if (!error.isEmpty()) {
+            return false;
+        }
+        encoding = TextEncoding::Utf32LE;
+        return true;
+    }
+    if (data.size() >= 4 && static_cast<uchar>(data.at(0)) == kBomUtf32Be[0]
+        && static_cast<uchar>(data.at(1)) == kBomUtf32Be[1]
+        && static_cast<uchar>(data.at(2)) == kBomUtf32Be[2]
+        && static_cast<uchar>(data.at(3)) == kBomUtf32Be[3]) {
+        text = decodeUtf32(data, 4, true, error);
+        if (!error.isEmpty()) {
+            return false;
+        }
+        encoding = TextEncoding::Utf32BE;
+        return true;
+    }
+
     if (data.size() >= 3 && static_cast<uchar>(data.at(0)) == kBomUtf8Byte
         && static_cast<uchar>(data.at(1)) == 0xBB && static_cast<uchar>(data.at(2)) == 0xBF) {
         QStringDecoder decoder(QStringDecoder::Utf8);
@@ -159,6 +240,10 @@ QByteArray encodeDocument(const QString &text, TextEncoding encoding)
         return encodeUtf16(text, false);
     case TextEncoding::Utf16BE:
         return encodeUtf16(text, true);
+    case TextEncoding::Utf32LE:
+        return encodeUtf32(text, false);
+    case TextEncoding::Utf32BE:
+        return encodeUtf32(text, true);
     case TextEncoding::Utf8:
     default:
         return text.toUtf8();

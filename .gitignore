@@ -55,6 +55,10 @@ compile_commands.json
 
 *_qmlcache.qrc
 
+# Python-generated helper artifacts
+__pycache__/
+*.py[cod]
+
 # Avestan Editor build outputs
 !Makefile
 /build-qmake/

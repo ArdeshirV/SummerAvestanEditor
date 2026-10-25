@@ -1,0 +1,12 @@
+Unicode character-name index
+=============================
+
+unicode_names.tsv contains official character names from the Unicode Character
+Database (UCD) 16.0.0. It is generated with scripts/generate-unicode-names.py
+using Python whose unicodedata module is built from Unicode 16.0.0.
+
+UCD source and license: https://www.unicode.org/ucd/ and
+https://www.unicode.org/license.txt
+
+Qt's Unicode character classification may be newer than this name index. Names
+for characters introduced after Unicode 16.0 are not available in this index.

@@ -2,6 +2,7 @@
 
 #include <QComboBox>
 #include <QFontDatabase>
+#include <QLineEdit>
 #include <QListView>
 
 #include "config.h"
@@ -18,6 +19,7 @@ private slots:
     void keyLabelHasExactLayout();
     void codePointCountCountsScalars();
     void keyboardPanelBuilds();
+    void characterSearchFiltersByCodePointAndReading();
     void allPrintableLanguageBuilds();
     void keyboardTapInsertsAtCaret();
 };
@@ -59,6 +61,29 @@ void TestKeyboard::keyboardPanelBuilds()
     QVERIFY(panel.characterView()->model()->data(panel.characterView()->model()->index(0, 0))
                 .toString()
                 .contains(QLatin1Char(' ')));
+}
+
+void TestKeyboard::characterSearchFiltersByCodePointAndReading()
+{
+    Editor editor;
+    KeyboardPanel panel(&editor);
+    QAbstractItemModel *model = panel.characterView()->model();
+    QVERIFY(model->rowCount() > 1);
+
+    panel.searchField()->setText(QStringLiteral("U+10B00"));
+    QCOMPARE(model->rowCount(), 1);
+    QCOMPARE(model->data(model->index(0, 0)).toString(), keyboardKeyText(QStringLiteral("Avesta"), 0x10B00));
+
+    panel.searchField()->setText(QStringLiteral("AVESTAN LETTER A"));
+    bool foundNamedCharacter = false;
+    for (int row = 0; row < model->rowCount(); ++row) {
+        foundNamedCharacter = foundNamedCharacter
+            || model->data(model->index(row, 0), Qt::ToolTipRole).toString()
+                   == QStringLiteral("U+10B00 — AVESTAN LETTER A");
+    }
+    QVERIFY(foundNamedCharacter);
+    panel.searchField()->setText(QStringLiteral("a"));
+    QVERIFY(model->rowCount() > 1);
 }
 
 void TestKeyboard::allPrintableLanguageBuilds()

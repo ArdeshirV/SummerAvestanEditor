@@ -7,8 +7,11 @@
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListView>
 #include <QPainter>
+#include <QPen>
+#include <QSortFilterProxyModel>
 #include <QVBoxLayout>
 
 QString keyLabelForCodePoint(uint codePoint)
@@ -62,10 +65,23 @@ int CharacterModel::rowCount(const QModelIndex &parent) const
 
 QVariant CharacterModel::data(const QModelIndex &index, int role) const
 {
-    if (role != Qt::DisplayRole || !index.isValid()) {
+    if (!index.isValid()) {
         return QVariant();
     }
-    return keyboardKeyText(m_languageName, codePointAt(index));
+    const uint codePoint = codePointAt(index);
+    const QString label = keyboardKeyText(m_languageName, codePoint);
+    if (role == Qt::DisplayRole) {
+        return label;
+    }
+    const QString hexadecimal = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+    const QString name = Config::instance().unicodeCharacterName(codePoint);
+    if (role == Qt::UserRole) {
+        return label + QLatin1Char(' ') + hexadecimal + QLatin1Char(' ') + name;
+    }
+    if (role == Qt::ToolTipRole) {
+        return name.isEmpty() ? hexadecimal : hexadecimal + QStringLiteral(" — ") + name;
+    }
+    return QVariant();
 }
 
 KeyDelegate::KeyDelegate(QObject *parent)
@@ -86,15 +102,26 @@ void KeyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
                         const QModelIndex &index) const
 {
     painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+
+    const QRect keyRect = option.rect.adjusted(3, 3, -3, -3);
+    QColor keyColor = option.palette.color(QPalette::Button);
+    QColor edgeColor = option.palette.color(QPalette::Mid);
     if (option.state & QStyle::State_MouseOver) {
-        painter->fillRect(option.rect, option.palette.alternateBase());
+        keyColor = option.palette.color(QPalette::Highlight);
+        edgeColor = keyColor.lighter(125);
     }
+
+    painter->setPen(QPen(edgeColor, 1));
+    painter->setBrush(keyColor);
+    painter->drawRoundedRect(keyRect, 5, 5);
 
     const QString text = index.data(Qt::DisplayRole).toString();
     const QFontMetrics metrics(option.font);
-    const QString elided = metrics.elidedText(text, Qt::ElideRight, option.rect.width() - 8);
-    painter->setPen(option.palette.text().color());
-    painter->drawText(option.rect.adjusted(4, 0, -4, 0), Qt::AlignCenter, elided);
+    const QRect textRect = keyRect.adjusted(5, 0, -5, 0);
+    const QString elided = metrics.elidedText(text, Qt::ElideRight, textRect.width());
+    painter->setPen(option.palette.color(QPalette::ButtonText));
+    painter->drawText(textRect, Qt::AlignCenter, elided);
     painter->restore();
 }
 
@@ -109,14 +136,23 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
         m_languageSelect->addItem(config.languageOptionName(language));
     }
 
-    auto *languageRow = new QHBoxLayout();
-    languageRow->setContentsMargins(0, 0, 0, 0);
-    languageRow->addWidget(new QLabel(config.string(QStringLiteral("language")), this));
-    languageRow->addWidget(m_languageSelect, 1);
+    m_languageRow = new QHBoxLayout();
+    m_languageRow->setContentsMargins(0, 0, 0, 0);
+    m_languageLabel = new QLabel(config.string(QStringLiteral("language")), this);
+    m_languageRow->addWidget(m_languageLabel);
+    m_languageRow->addWidget(m_languageSelect, 1);
 
     m_model = new CharacterModel(this);
+    m_searchField = new QLineEdit(this);
+    m_searchField->setPlaceholderText(config.string(QStringLiteral("keyboard_search_placeholder")));
+    m_filterModel = new QSortFilterProxyModel(this);
+    m_filterModel->setSourceModel(m_model);
+    m_filterModel->setFilterRole(Qt::UserRole);
+    m_filterModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    m_filterModel->setDynamicSortFilter(true);
+
     m_view = new QListView(this);
-    m_view->setModel(m_model);
+    m_view->setModel(m_filterModel);
     m_view->setItemDelegate(new KeyDelegate(m_view));
     m_view->setViewMode(QListView::IconMode);
     m_view->setFlow(QListView::LeftToRight);
@@ -125,19 +161,24 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_view->setMovement(QListView::Static);
     m_view->setUniformItemSizes(true);
     m_view->setSelectionMode(QAbstractItemView::NoSelection);
+    m_view->setMouseTracking(true);
+    m_view->viewport()->setMouseTracking(true);
     m_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_view->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_view->setGridSize(QSize(
         static_cast<int>(config.number(QStringLiteral("keyboard_key_width"))),
         static_cast<int>(config.number(QStringLiteral("keyboard_key_height")))));
-    m_view->setSpacing(0);
+    m_view->setSpacing(4);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
-    layout->addLayout(languageRow);
+    layout->addLayout(m_languageRow);
+    layout->addWidget(m_searchField);
     layout->addWidget(m_view, 1);
 
+    connect(m_searchField, &QLineEdit::textChanged, m_filterModel,
+            &QSortFilterProxyModel::setFilterFixedString);
     connect(m_view, &QListView::clicked, this, &KeyboardPanel::handleActivated);
     connect(m_languageSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &KeyboardPanel::setLanguage);
@@ -145,6 +186,19 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     if (m_languageSelect->count() > 0) {
         setLanguage(0);
     }
+}
+
+QComboBox *KeyboardPanel::takeLanguageSelector()
+{
+    if (m_languageRow) {
+        layout()->removeItem(m_languageRow);
+        delete m_languageRow;
+        m_languageRow = nullptr;
+    }
+    delete m_languageLabel;
+    m_languageLabel = nullptr;
+    m_languageSelect->setParent(nullptr);
+    return m_languageSelect;
 }
 
 void KeyboardPanel::setLanguage(int index)
@@ -172,5 +226,6 @@ void KeyboardPanel::handleActivated(const QModelIndex &index)
     if (!index.isValid()) {
         return;
     }
-    m_editor->insertTextAtCaret(codePointToString(m_model->codePointAt(index)));
+    const QModelIndex sourceIndex = m_filterModel->mapToSource(index);
+    m_editor->insertTextAtCaret(codePointToString(m_model->codePointAt(sourceIndex)));
 }

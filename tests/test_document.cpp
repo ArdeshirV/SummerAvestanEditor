@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "document.h"
+#include "unicode_util.h"
 
 class TestDocument : public QObject {
     Q_OBJECT
@@ -11,6 +12,8 @@ private slots:
     void utf8BomRoundTrip();
     void utf16LeRoundTrip();
     void utf16BeRoundTrip();
+    void utf32RoundTripsAndDetectsByteOrder();
+    void invalidUtf32IsRejected();
     void utf16ByteOrderMarksAreDetected();
     void invalidUtf8IsRejected();
     void incompleteUtf16IsRejected();
@@ -65,6 +68,31 @@ void TestDocument::utf16BeRoundTrip()
     QVERIFY(decodeDocument(data, decoded, encoding, error));
     QCOMPARE(decoded, text);
     QCOMPARE(encoding, TextEncoding::Utf16BE);
+}
+
+void TestDocument::utf32RoundTripsAndDetectsByteOrder()
+{
+    const QString text = QStringLiteral("A ") + codePointToString(0x10B00) + QStringLiteral(" ")
+        + codePointToString(0x1F600);
+    for (const TextEncoding expected : {TextEncoding::Utf32LE, TextEncoding::Utf32BE}) {
+        const QByteArray bytes = encodeDocument(text, expected);
+        QString decoded;
+        TextEncoding detected = TextEncoding::Utf8;
+        QString error;
+        QVERIFY(decodeDocument(bytes, decoded, detected, error));
+        QCOMPARE(decoded, text);
+        QCOMPARE(detected, expected);
+    }
+}
+
+void TestDocument::invalidUtf32IsRejected()
+{
+    QString decoded;
+    TextEncoding encoding = TextEncoding::Utf8;
+    QString error;
+    const QByteArray surrogate("\xFF\xFE\x00\x00\x00\xD8\x00\x00", 8);
+    QVERIFY(!decodeDocument(surrogate, decoded, encoding, error));
+    QVERIFY(!error.isEmpty());
 }
 
 void TestDocument::utf16ByteOrderMarksAreDetected()

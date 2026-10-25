@@ -11,6 +11,7 @@ private slots:
     void languagesAreOrdered();
     void verifiedReadingsAreUsed();
     void unknownReadingsFallBackToCodePoint();
+    void unicodeCharacterNamesLoad();
     void charactersIncludeEveryPrintableAndSpace();
     void themePalettesLoad();
     void applicationMetadataLoads();
@@ -39,6 +40,13 @@ void TestConfig::unknownReadingsFallBackToCodePoint()
 {
     QCOMPARE(Config::instance().phoneticFor(QStringLiteral("Avesta"), 0x0041),
              QStringLiteral("41"));
+}
+
+void TestConfig::unicodeCharacterNamesLoad()
+{
+    QCOMPARE(Config::instance().unicodeCharacterName(0x10B00),
+             QStringLiteral("AVESTAN LETTER A"));
+    QVERIFY(Config::instance().unicodeCharacterName(0x10FFFF).isEmpty());
 }
 
 void TestConfig::charactersIncludeEveryPrintableAndSpace()

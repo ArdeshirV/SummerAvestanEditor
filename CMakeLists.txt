@@ -11,6 +11,8 @@ set(AVESTAN_ASSETS
     assets/app.json
     assets/languages.json
     assets/readings.json
+    assets/unicode_names.tsv
+    assets/UNICODE-NAMES-SOURCE.txt
     assets/fonts/UnicodeScriptFallback.ttf
     assets/fonts/FONT-SOURCES.txt
     assets/fonts/LICENSE.txt

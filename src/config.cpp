@@ -263,6 +263,42 @@ QString Config::phoneticFor(const QString &languageName, uint codePoint) const
                              codePoint);
 }
 
+void Config::loadUnicodeNames() const
+{
+    if (m_unicodeNamesLoaded) {
+        return;
+    }
+    m_unicodeNamesLoaded = true;
+    QFile file(QStringLiteral(":/assets/unicode_names.tsv"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    m_unicodeNames.reserve(150000);
+    while (!file.atEnd()) {
+        QByteArray line = file.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+        const qsizetype tab = line.indexOf('\t');
+        if (tab <= 0) {
+            continue;
+        }
+        bool ok = false;
+        const uint codePoint = line.left(tab).toUInt(&ok, 16);
+        if (ok) {
+            m_unicodeNames.insert(codePoint,
+                                  QString::fromLatin1(line.constData() + tab + 1,
+                                                      line.size() - tab - 1));
+        }
+    }
+}
+
+QString Config::unicodeCharacterName(uint codePoint) const
+{
+    loadUnicodeNames();
+    return m_unicodeNames.value(codePoint);
+}
+
 const QVector<uint> &Config::charactersFor(const LanguageDefinition &language) const
 {
     const auto cached = m_characterCache.constFind(language.name);

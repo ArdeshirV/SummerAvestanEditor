@@ -70,6 +70,7 @@ public:
     // Verified reading for a character, or an uppercase hexadecimal code point
     // when no source-backed reading exists.
     QString phoneticFor(const QString &languageName, uint codePoint) const;
+    QString unicodeCharacterName(uint codePoint) const;
 
     // Every printable code point of a language, sorted, with a trailing space.
     const QVector<uint> &charactersFor(const LanguageDefinition &language) const;
@@ -92,6 +93,7 @@ private:
     void loadApplication(const QJsonObject &root);
     void loadLanguages(const QJsonObject &root);
     void loadReadings(const QJsonObject &root);
+    void loadUnicodeNames() const;
 
     QMap<QString, QString> m_strings;
     QMap<QString, double> m_numbers;
@@ -104,6 +106,8 @@ private:
     QMap<QString, ReadingSet> m_readings;
 
     mutable QHash<QString, QVector<uint>> m_characterCache;
+    mutable QHash<uint, QString> m_unicodeNames;
+    mutable bool m_unicodeNamesLoaded = false;
 
     QString m_appId;
     QString m_appName;

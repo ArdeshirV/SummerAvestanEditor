@@ -10,6 +10,8 @@ class KeyboardPanel;
 class QCheckBox;
 class QLabel;
 class QSplitter;
+class QTimer;
+class QToolButton;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -29,6 +31,10 @@ private slots:
     void showAboutDialog();
     void toggleRightToLeft(bool enabled);
     void updateStatus();
+    void insertUnicodeCodePoint();
+    void saveRecoveryDraft();
+    void offerSessionRestore();
+    void toggleKeyboard();
 
 private:
     void buildUi();
@@ -37,6 +43,7 @@ private:
     void applyEditorFont();
     void setDirty(bool dirty);
     void setCurrentDocument(const QString &path, TextEncoding encoding);
+    void clearRecoveryDraft();
     bool writeToPath(const QString &path);
     void requestExit();
 
@@ -45,11 +52,15 @@ private:
     QSplitter *m_splitter = nullptr;
     QCheckBox *m_rtlCheck = nullptr;
     QLabel *m_status = nullptr;
+    QToolButton *m_keyboardToggle = nullptr;
+    QTimer *m_recoveryTimer = nullptr;
 
     QString m_currentPath;
     TextEncoding m_encoding = TextEncoding::Utf8;
     bool m_dirty = false;
     bool m_loading = false;
+    bool m_restorePromptShown = false;
+    QString m_recoveryPath;
 
     QString m_bundledFamily;
     QString m_customFamily;

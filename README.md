@@ -9,9 +9,10 @@ scripts, other Unicode scripts, general symbols, and an **All printable
 Unicode** keyboard.
 
 The editor runs on Linux, Windows, and Android. You can open, edit, and save
-Unicode text documents in UTF-8 (with or without BOM) or UTF-16 LE/BE. All
-settings, language data, readings, and user-visible strings are embedded from
-the `assets/` directory through Qt resources.
+Unicode text documents in UTF-8 (with or without BOM), UTF-16 LE/BE, or BOM-marked
+UTF-32 LE/BE. Invalid UTF data is rejected instead of silently replaced. All
+settings, language data, readings, Unicode character names, and user-visible
+strings are embedded from the `assets/` directory through Qt resources.
 
 ## Run and build
 
@@ -30,6 +31,7 @@ make termux          # Termux (Android/bionic) binary
 make windows         # Windows .exe
 make android         # Android .apk
 make test            # Qt Test regression suite
+make run             # run the native build
 make clean           # remove dist/ and test builds
 ```
 
@@ -65,6 +67,7 @@ alignment.
 | `Ctrl+O` | Open |
 | `Ctrl+S` | Save |
 | `Ctrl+Shift+S` | Save As |
+| `Ctrl+Shift+U` | Insert a Unicode code point |
 | `F1` | About |
 | `Ctrl+X` | Close through the unsaved-changes flow |
 
@@ -73,30 +76,40 @@ keyboard shortcut for the native cut command is not available; use the editor's
 context menu (right-click or long-press) for Cut. `Ctrl+C`, `Ctrl+V`, `Ctrl+Z`,
 `Ctrl+Y`, and `Ctrl+A` remain native.
 
-Opening a file detects its encoding from the byte-order mark; existing files
-keep their encoding on Save. Save As uses the standard overwrite confirmation
+Opening a file detects UTF-8, UTF-16, and UTF-32 byte-order marks; files without
+a recognized BOM must be valid UTF-8. Existing files keep their detected
+encoding on Save. Autosave writes an atomic recovery draft after edits; on the
+next launch the app offers to restore it. The last opened file can also be
+reopened as a session. Autosave can be disabled in Settings. Save As uses the
+standard overwrite confirmation
 before replacing an existing file. Exit, the window close button, and `Ctrl+X`
 all go through the same unsaved-changes dialog with **Yes** (save first),
 **No** (discard), and **Cancel** (stay open) choices.
 
 ## Keyboard and scripts
 
-The language selector sits above the software keyboard. The first four entries
-are Avesta, Pahlavi, Parthian, and Ancient Persian; the list then continues with
+The language selector sits above the text editor; the editor remains above the
+software keyboard. The first four language entries are Avesta, Pahlavi,
+Parthian, and Ancient Persian; the list then continues with
 other ancient Iranian and historic scripts, other Unicode scripts/languages,
 general symbols, and **All printable Unicode**. Each entry shows the language
 name with a sample in its own script where one is available.
 
-Every printable character of the selected language is shown. Each key label has
-the exact layout **space, character, space, reading** — for example ` 𐬀 a`.
+Every printable character of the selected language is shown. The search field
+filters by the displayed character, its reading, or its `U+` code point. For
+example, search for `U+10B00` to find an Avestan letter. Each key label has the
+exact layout **space, character, space, reading** — for example ` 𐬀 a`.
 Combining marks are previewed with a dotted circle (`◌́`) but insert only the
 mark itself. Tapping a key inserts at the editor's current caret and returns
 focus to the editor, so native editing behaviour is preserved. The keyboard
 list is virtualised, so large ranges such as CJK, Egyptian Hieroglyphs, or all
-of Unicode remain responsive.
+of Unicode remain responsive. `Ctrl+Shift+U` also inserts a character from a
+hexadecimal code point.
 
 Character enumeration and printability use the Unicode tables built into the
-Qt toolchain (`QChar`). The Unicode data version shown in the status bar is
+Qt toolchain (`QChar`). Unicode names used for keyboard search are bundled from
+UCD 16.0.0 (`assets/unicode_names.tsv`); newly assigned names from later Unicode
+versions may be absent. The Unicode data version shown in the status bar is
 stored in `assets/app.json`.
 
 ## Readings
@@ -119,9 +132,11 @@ limitations.
 
 ## Settings and appearance
 
-**Settings** contains the metallic dark/light/system theme, the text size, and
-font selection in one dialog:
+**Settings** contains autosave recovery, the metallic dark/light/system theme,
+the text size, and font selection in one dialog:
 
+- the **Autosave recovery draft** option controls whether unsaved drafts are
+  saved locally for crash recovery;
 - the **Theme** label and selector are on one horizontal row;
 - the **Text size** label and selector are on another row;
 - a **Font** label sits above a horizontal row with the **Font file...** and
@@ -133,8 +148,11 @@ Changes apply immediately and persist between runs. **Font file...** validates
 the selected `.ttf`/`.otf` file (size limit and font parsing) before using it.
 The bundled **Unicode Script Fallback** is a renamed, merged font containing
 Noto Avestan, Old Persian, Parthian, Pahlavi, and 40 other Noto script faces,
-plus Noto Naskh Arabic shaping. It is distributed under SIL OFL 1.1; face names
-and attribution are in `assets/fonts/FONT-SOURCES.txt` and the license is in
+plus Noto Naskh Arabic shaping. Glyph coverage does not guarantee full shaping
+support for every ancient script; Avestan shaping quality depends on the font
+and Qt's shaping backend. The app accepts user-supplied fonts in Settings. The
+bundled font is distributed under SIL OFL 1.1; face names and attribution are
+in `assets/fonts/FONT-SOURCES.txt` and the license is in
 `assets/fonts/LICENSE.txt`.
 
 The **Right to left** checkbox follows **About** in the top bar, defaults to on,
@@ -143,8 +161,20 @@ unchecked they align to the left. Keyboard direction is never changed. The top
 bar also holds Open, Save, Save As, Settings, and About, with Exit at the top
 right.
 
-The keyboard occupies 70% of the window by default. Dragging the splitter
-changes the proportions, which are saved for the next run.
+The editor remains above the keyboard in every orientation. The keyboard
+occupies 70% of the window by default; dragging the splitter changes the
+proportions, which are saved for the next run. The top-bar keyboard control can
+hide the keyboard temporarily to make more room for editing.
+
+## Desktop and portable Linux builds
+
+After `make linux-amd64`, install a per-user desktop launcher with
+`./scripts/install-desktop-launcher.sh`. It copies the executable into
+`~/.local/opt` and installs the icon and `.desktop` entry. The target machine
+still needs compatible Qt 6 runtime libraries. To create a bundled AppImage,
+run `./scripts/package-portable-appimage.sh`; it downloads linuxdeploy and its Qt
+plugin and bundles the runtime. Review downloaded tools and dependencies before
+using them on production systems.
 
 ## About dialog
 

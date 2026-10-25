@@ -9,7 +9,11 @@
 
 class Editor;
 class QComboBox;
+class QHBoxLayout;
+class QLabel;
+class QLineEdit;
 class QListView;
+class QSortFilterProxyModel;
 
 // The exact label layout required for every key: one space, the character
 // (combining marks shown with a dotted circle), one space, then the reading.
@@ -56,7 +60,9 @@ public:
     void setLanguage(int index);
     int currentLanguage() const;
     QComboBox *languageSelector() const { return m_languageSelect; }
+    QComboBox *takeLanguageSelector();
     QListView *characterView() const { return m_view; }
+    QLineEdit *searchField() const { return m_searchField; }
 
 signals:
     void languageChanged(int index);
@@ -67,7 +73,11 @@ private slots:
 private:
     Editor *m_editor;
     QComboBox *m_languageSelect;
+    QLabel *m_languageLabel = nullptr;
+    QHBoxLayout *m_languageRow = nullptr;
+    QLineEdit *m_searchField;
     QListView *m_view;
+    QSortFilterProxyModel *m_filterModel;
     CharacterModel *m_model;
 };
 
