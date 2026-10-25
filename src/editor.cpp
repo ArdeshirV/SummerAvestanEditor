@@ -1,8 +1,9 @@
 #include "editor.h"
 
+#include <QScrollBar>
+#include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextOption>
-#include <QScrollBar>
 
 Editor::Editor(QWidget *parent)
     : QPlainTextEdit(parent)
@@ -14,6 +15,15 @@ Editor::Editor(QWidget *parent)
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setTabChangesFocus(false);
     setAcceptDrops(true);
+
+    // Use a compact baseline; block formatting applies to existing and future
+    // paragraphs without modifying the document's contents.
+    QTextBlockFormat blockFormat;
+    blockFormat.setLineHeight(90, QTextBlockFormat::ProportionalHeight);
+    QTextCursor cursor(document());
+    cursor.setPosition(0);
+    cursor.setBlockFormat(blockFormat);
+    document()->setDefaultStyleSheet(QStringLiteral("p { line-height: 90%; margin: 0; }"));
 }
 
 void Editor::setRightToLeft(bool rightToLeft)

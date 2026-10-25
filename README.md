@@ -38,9 +38,12 @@ make clean           # remove dist/ and test builds
 Architecture-specific targets are `linux-amd64 linux-arm64 linux-386`,
 `termux-arm64 termux-arm arm termux-amd64`, `windows-amd64 windows-arm64
 windows-386`, and `android-arm64 android-arm android-amd64`. Cross builds need a
-Qt kit built for the target, so point the relevant variable at that kit's qmake:
+Qt kit built for the target, so point the relevant variable at that kit's qmake.
+The Windows qmake project embeds `Icon.ico` as the executable icon. Regenerate it
+from `Icon.png` with `python3 scripts/create-windows-icon.py` (requires libpng):
 
 ```sh
+python3 scripts/create-windows-icon.py
 make windows WINDOWS_QMAKE=/opt/Qt/6.8.0/mingw_64/bin/qmake
 make android ANDROID_QMAKE=$HOME/Qt/6.8.0/android_arm64_v8a/bin/qmake \
              ANDROID_NDK_ROOT=$HOME/Android/Sdk/ndk/27.0.12077973

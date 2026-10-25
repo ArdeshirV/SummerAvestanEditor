@@ -102,9 +102,12 @@
     "default_font_file_limit_mib": 20,
     "bytes_per_mib": 1048576,
     "splitter_save_interval_millis": 250,
+    "font_scale_tiny": 0.7,
     "font_scale_small": 0.85,
     "font_scale_medium": 1.0,
     "font_scale_large": 1.15,
+    "font_scale_extra_large": 1.3,
+    "font_scale_huge": 1.5,
     "about_icon_size": 72,
     "about_name_font_multiplier": 2.1,
     "about_close_button_width": 140,
@@ -142,9 +145,12 @@
     "System"
   ],
   "font_size_options": [
+    "Tiny",
     "Small",
     "Medium",
-    "Large"
+    "Large",
+    "Extra Large",
+    "Huge"
   ],
   "right_to_left_default": true,
   "theme_palettes": {

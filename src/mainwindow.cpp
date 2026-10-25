@@ -146,16 +146,13 @@ void MainWindow::buildUi()
     topLayout->addWidget(new QPushButton(openAction->text(), topBar));
     topLayout->addWidget(new QPushButton(saveAction->text(), topBar));
     topLayout->addWidget(new QPushButton(saveAsAction->text(), topBar));
-    topLayout->addWidget(new QPushButton(insertCodePointAction->text(), topBar));
     topLayout->addWidget(new QPushButton(settingsAction->text(), topBar));
     topLayout->addWidget(new QPushButton(aboutAction->text(), topBar));
 
-    m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), topBar);
-    topLayout->addWidget(m_rtlCheck);
-    m_keyboardToggle = new QToolButton(topBar);
+    m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
+    m_keyboardToggle = new QToolButton(this);
     m_keyboardToggle->setText(QStringLiteral("Hide keyboard"));
     m_keyboardToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    topLayout->addWidget(m_keyboardToggle);
     topLayout->addStretch(1);
 
     auto *exitButton = new QPushButton(exitAction->text(), topBar);
@@ -164,7 +161,7 @@ void MainWindow::buildUi()
     // Wire buttons to the same actions so keyboard and click share one path.
     const auto buttons = topBar->findChildren<QPushButton *>();
     const QList<QAction *> actionOrder = {openAction, saveAction, saveAsAction,
-                                          insertCodePointAction, settingsAction, aboutAction, exitAction};
+                                          settingsAction, aboutAction, exitAction};
     for (int index = 0; index < actionOrder.size() && index < buttons.size(); ++index) {
         connect(buttons.at(index), &QPushButton::clicked, actionOrder.at(index),
                 &QAction::trigger);
@@ -186,6 +183,13 @@ void MainWindow::buildUi()
     languageLayout->setContentsMargins(8, 3, 8, 3);
     languageLayout->addWidget(new QLabel(config.string(QStringLiteral("language")), languageBar));
     languageLayout->addWidget(languageSelect, 1);
+    auto *insertCodePointButton = new QPushButton(insertCodePointAction->text(), languageBar);
+    connect(insertCodePointButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
+    languageLayout->addWidget(insertCodePointButton);
+    m_rtlCheck->setParent(languageBar);
+    languageLayout->addWidget(m_rtlCheck);
+    m_keyboardToggle->setParent(languageBar);
+    languageLayout->addWidget(m_keyboardToggle);
     centralLayout->addWidget(languageBar);
     centralLayout->addWidget(m_splitter, 1);
     setCentralWidget(central);
@@ -264,10 +268,16 @@ void MainWindow::applyEditorFont()
             .toString();
 
     double scale = config.number(QStringLiteral("font_scale_medium"));
-    if (choice == config.string(QStringLiteral("font_size_small"))) {
+    if (choice == QStringLiteral("Tiny")) {
+        scale = config.number(QStringLiteral("font_scale_tiny"));
+    } else if (choice == config.string(QStringLiteral("font_size_small"))) {
         scale = config.number(QStringLiteral("font_scale_small"));
     } else if (choice == config.string(QStringLiteral("font_size_large"))) {
         scale = config.number(QStringLiteral("font_scale_large"));
+    } else if (choice == QStringLiteral("Extra Large")) {
+        scale = config.number(QStringLiteral("font_scale_extra_large"));
+    } else if (choice == QStringLiteral("Huge")) {
+        scale = config.number(QStringLiteral("font_scale_huge"));
     }
 
     QFont font = m_editor->font();

@@ -17,3 +17,7 @@ HEADERS += \
     $$AVESTAN_HEADERS
 
 RESOURCES += $$PWD/resources.qrc
+
+win32 {
+    RC_FILE = $$PWD/avestan-editor.rc
+}
