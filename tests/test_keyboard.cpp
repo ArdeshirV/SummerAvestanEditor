@@ -84,6 +84,18 @@ void TestKeyboard::characterSearchFiltersByCodePointAndReading()
     QVERIFY(foundNamedCharacter);
     panel.searchField()->setText(QStringLiteral("a"));
     QVERIFY(model->rowCount() > 1);
+    bool foundAvestanAByReading = false;
+    for (int row = 0; row < model->rowCount(); ++row) {
+        const QModelIndex source = qobject_cast<QSortFilterProxyModel *>(model)
+                                       ->mapToSource(model->index(row, 0));
+        const auto *characters = qobject_cast<CharacterModel *>(
+            qobject_cast<QSortFilterProxyModel *>(model)->sourceModel());
+        if (characters->codePointAt(source) == 0x10B00) {
+            foundAvestanAByReading = true;
+            break;
+        }
+    }
+    QVERIFY(foundAvestanAByReading);
 }
 
 void TestKeyboard::allPrintableLanguageBuilds()

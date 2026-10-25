@@ -19,11 +19,11 @@ Editor::Editor(QWidget *parent)
     // Use a compact baseline; block formatting applies to existing and future
     // paragraphs without modifying the document's contents.
     QTextBlockFormat blockFormat;
-    blockFormat.setLineHeight(90, QTextBlockFormat::ProportionalHeight);
+    blockFormat.setLineHeight(50, QTextBlockFormat::ProportionalHeight);
     QTextCursor cursor(document());
     cursor.setPosition(0);
     cursor.setBlockFormat(blockFormat);
-    document()->setDefaultStyleSheet(QStringLiteral("p { line-height: 90%; margin: 0; }"));
+    document()->setDefaultStyleSheet(QStringLiteral("p { line-height: 50%; margin: 0; }"));
 }
 
 void Editor::setRightToLeft(bool rightToLeft)
