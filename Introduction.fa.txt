@@ -1,8 +1,8 @@
 ## معرفی کوتاه پروژهٔ Avestan Editor
 
-**Avestan Editor ابزاری برای نوشتن و نگهداری متون به خط‌ها و نویسه‌های باستانی، به‌ویژه خط‌های ایرانی باستان است.** این نرم‌افزار به شما امکان می‌دهد نویسه‌هایی را تایپ کنید که روی صفحه‌کلیدهای معمولی وجود ندارند و آن‌ها را در قالب متن دیجیتال ذخیره کنید. [GitHub](https://github.com/ArdeshirV/cuneiform?utm_source=chatgpt.com)
+**Avestan Editor ابزاری برای نوشتن و نگهداری متون به خط‌ها و نویسه‌های باستانی، به‌ویژه خط‌های ایرانی باستان است.** این نرم‌افزار به شما امکان می‌دهد نویسه‌هایی را تایپ کنید که روی صفحه‌کلیدهای معمولی وجود ندارند و آن‌ها را در قالب متن دیجیتال ذخیره کنید. [GitHub](https://github.com/ArdeshirV/SummerAvestanEditor?utm_source=chatgpt.com)
 
-نشانی پروژه: [github.com/ArdeshirV/cuneiform](https://github.com/ArdeshirV/cuneiform)
+نشانی پروژه: [github.com/ArdeshirV/cuneiform](https://github.com/ArdeshirV/SummerAvestanEditor)
 
 ### ۱. این نرم‌افزار چه کاری انجام می‌دهد؟
 
@@ -10,9 +10,9 @@
 - **صفحه‌کلید اختصاصی:** انتخاب نویسه‌ها از صفحه‌کلیدی نرم‌افزاری، همراه با نمایش تلفظ یا خوانش آن‌ها.
 - **ویرایش و ذخیرهٔ متن:** بازکردن، ویرایش و ذخیرهٔ اسناد متنی با پشتیبانی از UTF-8 و UTF-16.
 - **اجرا روی چند سیستم‌عامل:** لینوکس، ویندوز و اندروید.
-- **پشتیبانی از خط‌های دیگر:** دسترسی به مجموعهٔ گسترده‌ای از نویسه‌ها و خط‌های موجود در استاندارد Unicode. [GitHub](https://github.com/ArdeshirV/cuneiform?utm_source=chatgpt.com)
+- **پشتیبانی از خط‌های دیگر:** دسترسی به مجموعهٔ گسترده‌ای از نویسه‌ها و خط‌های موجود در استاندارد Unicode. [GitHub](https://github.com/ArdeshirV/SummerAvestanEditor?utm_source=chatgpt.com)
 
-این پروژه با زبان برنامه‌نویسی C++ و چارچوب گرافیکی Qt توسعه یافته و تحت مجوز آزاد GPL-3.0 منتشر شده است. [GitHub](https://github.com/ArdeshirV/cuneiform?utm_source=chatgpt.com)
+این پروژه با زبان برنامه‌نویسی C++ و چارچوب گرافیکی Qt توسعه یافته و تحت مجوز آزاد GPL-3.0 منتشر شده است. [GitHub](https://github.com/ArdeshirV/SummerAvestanEditor?utm_source=chatgpt.com)
 
 ### ۲. اهمیت فرهنگی و تاریخی آن چیست؟
 

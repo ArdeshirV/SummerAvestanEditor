@@ -151,7 +151,7 @@ changes the proportions, which are saved for the next run.
 The About dialog shows the app icon next to **Avestan Editor**, the version
 `1.0` below the name, the copyright
 `Copyright (c) 2026 @ArdeshirV, Licenced under GPLv3+`, and the project link
-<https://github.com/ArdeshirV/cuneiform>. The `@ArdeshirV` handle in the
+<https://github.com/ArdeshirV/SummerAvestanEditor>. The `@ArdeshirV` handle in the
 copyright line is itself a link to <https://ardeshirv.github.io/>. It can be
 dismissed with its Close button or with Escape, Return, or the keypad Enter key.
 

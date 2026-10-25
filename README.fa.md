@@ -147,7 +147,7 @@ Qt (`QChar`) استفاده می‌کند. نسخهٔ دادهٔ یونیکد ک
 
 پنجرهٔ درباره، نقشک برنامه را کنار **Avestan Editor**، نسخهٔ `1.0` را زیر نام،
 حق نشر `Copyright (c) 2026 @ArdeshirV, Licenced under GPLv3+` و نشانی پروژه
-<https://github.com/ArdeshirV/cuneiform> را نشان می‌دهد. خودِ نام `@ArdeshirV`
+<https://github.com/ArdeshirV/SummerAvestanEditor> را نشان می‌دهد. خودِ نام `@ArdeshirV`
 در سطر حق نشر نیز پیوندی به <https://ardeshirv.github.io/> است. این پنجره با
 دکمهٔ Close یا کلیدهای Escape، Enter و Enter صفحه‌کلید عددی بسته می‌شود.
 

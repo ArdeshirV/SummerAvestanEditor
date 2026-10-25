@@ -2,7 +2,7 @@
 
 **Avestan Editor is a tool for writing and preserving texts in ancient scripts, particularly those associated with ancient Iran.** It allows you to type characters that are not available on ordinary keyboards and save them as digital text.
 
-Project repository: [github.com/ArdeshirV/cuneiform](https://github.com/ArdeshirV/cuneiform)
+Project repository: [github.com/ArdeshirV/cuneiform](https://github.com/ArdeshirV/SummerAvestanEditor)
 
 ### 1. What does this software do?
 

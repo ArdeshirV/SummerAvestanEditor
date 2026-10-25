@@ -69,7 +69,7 @@ void TestConfig::applicationMetadataLoads()
 {
     const Config &config = Config::instance();
     QCOMPARE(config.appVersion(), QStringLiteral("1.0"));
-    QCOMPARE(config.projectUrl(), QStringLiteral("https://github.com/ArdeshirV/cuneiform"));
+    QCOMPARE(config.projectUrl(), QStringLiteral("https://github.com/ArdeshirV/SummerAvestanEditor"));
     QCOMPARE(config.authorUrl(), QStringLiteral("https://ardeshirv.github.io/"));
     QVERIFY(config.copyright().contains(QStringLiteral("@ArdeshirV")));
 }
