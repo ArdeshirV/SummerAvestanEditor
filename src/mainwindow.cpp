@@ -186,10 +186,10 @@ void MainWindow::buildUi()
     auto *insertCodePointButton = new QPushButton(insertCodePointAction->text(), languageBar);
     connect(insertCodePointButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
     languageLayout->addWidget(insertCodePointButton);
-    m_rtlCheck->setParent(languageBar);
-    languageLayout->addWidget(m_rtlCheck);
     m_keyboardToggle->setParent(languageBar);
     languageLayout->addWidget(m_keyboardToggle);
+    m_rtlCheck->setParent(languageBar);
+    languageLayout->addWidget(m_rtlCheck);
     centralLayout->addWidget(languageBar);
     centralLayout->addWidget(m_splitter, 1);
     setCentralWidget(central);
