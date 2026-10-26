@@ -14,6 +14,10 @@ UTF-32 LE/BE. Invalid UTF data is rejected instead of silently replaced. All
 settings, language data, readings, Unicode character names, and user-visible
 strings are embedded from the `assets/` directory through Qt resources.
 
+![Summer Avestan Editor V 1.0 on Linux Desktop](img/SummerAvestanEditor.png)
+
+Summer Avestan Editor V 1.0 on Linux Desktop
+
 ## Run and build
 
 Requires a Qt 6 development environment with Qt Widgets and Qt Test (`qmake6`).
