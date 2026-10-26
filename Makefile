@@ -40,7 +40,7 @@ MAKE  ?= make
 LINUX_QMAKE   ?= $(QMAKE)
 TERMUX_QMAKE  ?= $(QMAKE)
 WINDOWS_QMAKE ?= $(QMAKE)
-ANDROID_QMAKE ?= $(QMAKE)
+ANDROID_QMAKE ?= $(if $(wildcard $(HOME)/Documents/Apps/Qt/6.12/6.12.0/android_arm64_v8a/bin/qmake),$(HOME)/Documents/Apps/Qt/6.12/6.12.0/android_arm64_v8a/bin/qmake,$(QMAKE))
 
 # Cross toolchain / packaging settings.
 MINGW_PREFIX    ?= x86_64-w64-mingw32
@@ -53,7 +53,7 @@ ANDROID_SPEC    ?= android-clang
 ANDROID_API     ?= 23
 ANDROID_ABI     ?= arm64-v8a
 ANDROID_ARCH    ?= arm64
-ANDROIDDEPLOYQT ?= androiddeployqt
+ANDROIDDEPLOYQT ?= $(if $(wildcard $(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt),$(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt,androiddeployqt)
 
 # Host detection.
 HOST_MACHINE := $(shell uname -m)
