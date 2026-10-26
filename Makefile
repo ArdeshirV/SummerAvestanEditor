@@ -88,11 +88,20 @@ define qt_build
 	@cd "$(DIST)/build/$(1)-$(2)" && \
 		$(3) "$(CURDIR)/$(PROJECT)" $(4) && \
 		$(MAKE) -j"$(JOBS)"
-	@test -f "$(DIST)/build/$(1)-$(2)/avestan-editor$(5)" \
-		|| { echo "error: expected $(DIST)/build/$(1)-$(2)/avestan-editor$(5) was not produced"; exit 1; }
-	@mkdir -p "$(DIST)"
-	@cp "$(DIST)/build/$(1)-$(2)/avestan-editor$(5)" "$(DIST)/$(APP)-$(1)-$(2)$(5)"
-	@echo ">>> $(DIST)/$(APP)-$(1)-$(2)$(5)"
+	@binary="$(DIST)/build/$(1)-$(2)/avestan-editor$(5)"; \
+	 test -f "$$binary" || { echo "error: expected $$binary was not produced"; exit 1; }; \
+	 description=$$(file -b "$$binary"); \
+	 case "$(2)" in \
+	   amd64) echo "$$description" | grep -Eqi 'x86-64|x86_64' ;; \
+	   386) echo "$$description" | grep -Eqi 'Intel 80386|i386' ;; \
+	   arm64) echo "$$description" | grep -Eqi 'ARM aarch64|aarch64' ;; \
+	   arm) echo "$$description" | grep -Eqi 'ARM,' ;; \
+	 esac || { echo "error: built artifact architecture does not match target $(1)-$(2): $$description"; exit 1; }; \
+	 if [ "$(1)" = "Termux" ] && ! readelf -l "$$binary" 2>/dev/null | grep -q '/system/bin/linker'; then \
+	   echo "error: $(1)-$(2) artifact is not linked for Android/bionic; use a Termux Android Qt kit."; exit 1; \
+	 fi; \
+	 mkdir -p "$(DIST)"; cp "$$binary" "$(DIST)/$(APP)-$(1)-$(2)$(5)"; \
+	 echo ">>> $(DIST)/$(APP)-$(1)-$(2)$(5)"
 endef
 
 # Native desktop builds --------------------------------------------------------
