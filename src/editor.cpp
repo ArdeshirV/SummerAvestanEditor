@@ -1,7 +1,9 @@
 #include "editor.h"
 
 #include <QScrollBar>
+#include <QTextBlock>
 #include <QTextBlockFormat>
+#include <QTextDocument>
 #include <QTextCursor>
 #include <QTextOption>
 
@@ -18,12 +20,20 @@ Editor::Editor(QWidget *parent)
 
     // Use a compact baseline; block formatting applies to existing and future
     // paragraphs without modifying the document's contents.
-    QTextBlockFormat blockFormat;
-    blockFormat.setLineHeight(50, QTextBlockFormat::ProportionalHeight);
-    QTextCursor cursor(document());
-    cursor.setPosition(0);
-    cursor.setBlockFormat(blockFormat);
-    document()->setDefaultStyleSheet(QStringLiteral("p { line-height: 50%; margin: 0; }"));
+    const auto applyCompactLineSpacing = [this]() {
+        QTextBlockFormat blockFormat;
+        blockFormat.setLineHeight(30, QTextBlockFormat::ProportionalHeight);
+        for (QTextBlock block = document()->begin(); block.isValid(); block = block.next()) {
+            if (block.blockFormat().lineHeightType() != QTextBlockFormat::ProportionalHeight
+                || block.blockFormat().lineHeight() != 30) {
+                QTextCursor cursor(block);
+                cursor.setBlockFormat(blockFormat);
+            }
+        }
+    };
+    applyCompactLineSpacing();
+    connect(document(), &QTextDocument::blockCountChanged, this,
+            [applyCompactLineSpacing](int) { applyCompactLineSpacing(); });
 }
 
 void Editor::setRightToLeft(bool rightToLeft)
