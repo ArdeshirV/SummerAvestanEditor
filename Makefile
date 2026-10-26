@@ -50,10 +50,12 @@ WINDOWS_SPEC    ?= win32-g++
 LINUX_SPEC      ?=
 TERMUX_SPEC     ?=
 ANDROID_SPEC    ?= android-clang
+ANDROID_NDK_ROOT ?= $(if $(ANDROID_NDK_HOME),$(ANDROID_NDK_HOME),$(HOME)/Documents/Apps/Android/ndk)
 ANDROID_API     ?= 23
 ANDROID_ABI     ?= arm64-v8a
 ANDROID_ARCH    ?= arm64
 ANDROIDDEPLOYQT ?= $(if $(wildcard $(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt),$(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt,androiddeployqt)
+ANDROID_JAVA_HOME ?= $(shell for j in "$(JAVA_HOME)" /usr/lib/jvm/java-26-openjdk-amd64 /usr/lib/jvm/java-17-openjdk-amd64; do test -x "$$j/bin/java" && { echo "$$j"; break; }; done)
 
 # Host detection.
 HOST_MACHINE := $(shell uname -m)
@@ -148,15 +150,15 @@ define android_build
 	@mkdir -p "$(DIST)/build/Android-$(1)"
 	@echo ">>> Building $(APP)-Android-$(1)"
 	@cd "$(DIST)/build/Android-$(1)" && \
-		$(ANDROID_QMAKE) "$(CURDIR)/$(PROJECT)" \
+		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM ANDROID_NDK_ROOT="$(ANDROID_NDK_ROOT)" $(ANDROID_QMAKE) "$(CURDIR)/$(PROJECT)" \
 			-spec $(ANDROID_SPEC) ANDROID_ABIS="$(2)" \
 			$(if $(ANDROID_NDK_ROOT),ANDROID_NDK_ROOT="$(ANDROID_NDK_ROOT)",) && \
-		$(MAKE) -j"$(JOBS)"
+		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM $(MAKE) -j"$(JOBS)"
 	@if command -v "$(ANDROIDDEPLOYQT)" >/dev/null 2>&1; then \
 		cd "$(DIST)/build/Android-$(1)" && \
 		mkdir -p "android-build/libs/$(2)" && \
 		cp "libavestan-editor_$(2).so" "android-build/libs/$(2)/" && \
-		$(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
+		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM JAVA_HOME="$(ANDROID_JAVA_HOME)" $(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
 			--output "$(CURDIR)/$(DIST)/build/Android-$(1)/android-build" \
 			--apk --android-platform "android-$(ANDROID_API)" \
 			$(if $(ANDROID_NDK_ROOT),--ndk "$(ANDROID_NDK_ROOT)",); \
