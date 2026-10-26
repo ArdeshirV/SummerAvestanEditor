@@ -160,9 +160,9 @@ define android_build
 			--output "$(CURDIR)/$(DIST)/build/Android-$(1)/android-build" \
 			--apk --android-platform "android-$(ANDROID_API)" \
 			$(if $(ANDROID_NDK_ROOT),--ndk "$(ANDROID_NDK_ROOT)",); \
-		apk=$$(find "$(DIST)/build/Android-$(1)" -name '*.apk' | head -n 1); \
+		apk=$$(find "$(CURDIR)/$(DIST)/build/Android-$(1)" -name '*.apk' | head -n 1); \
 		test -n "$$apk" || { echo "error: androiddeployqt produced no APK"; exit 1; }; \
-		cp "$$apk" "$(DIST)/$(APP)-Android-$(1).apk"; \
+		cp "$$apk" "$(CURDIR)/$(DIST)/$(APP)-Android-$(1).apk"; \
 		echo ">>> $(DIST)/$(APP)-Android-$(1).apk"; \
 	else \
 		echo "note: $(ANDROIDDEPLOYQT) not found; native libraries were built but no APK was packaged."; \
