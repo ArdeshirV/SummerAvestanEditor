@@ -17,7 +17,7 @@ DESKTOP_DIR="$HOME/.local/share/applications"
 DESKTOP_FILE="$DESKTOP_DIR/summer-avestan-editor.desktop"
 mkdir -p "$APP_DIR" "$ICON_DIR" "$DESKTOP_DIR"
 install -m 0755 "$SOURCE_BIN" "$BIN"
-install -m 0644 "$ROOT/Icon.png" "$ICON_DIR/summer-avestan-editor.png"
+install -m 0644 "$ROOT/img/Icon.png" "$ICON_DIR/summer-avestan-editor.png"
 
 # Desktop Entry Exec fields must quote paths containing whitespace and escape
 # characters that have special meaning in the Desktop Entry specification.

@@ -53,8 +53,8 @@ make android ANDROID_QMAKE=$HOME/Qt/6.8.0/android_arm64_v8a/bin/qmake \
              ANDROID_NDK_ROOT=$HOME/Android/Sdk/ndk/27.0.12077973
 ```
 
-پروژهٔ qmake ویندوز، `Icon.ico` را به‌عنوان نقشک فایل اجرایی جاسازی می‌کند.
-برای ساخت دوبارهٔ آن از `Icon.png`، اسکریپت بالا را اجرا کنید؛ این کار به libpng
+پروژهٔ qmake ویندوز، `img/Icon.ico` را به‌عنوان نقشک فایل اجرایی جاسازی می‌کند.
+برای ساخت دوبارهٔ آن از `img/Icon.png`، اسکریپت بالا را اجرا کنید؛ این کار به libpng
 نیاز دارد.
 
 ساخت تک‌پرونده‌ای با qmake همچنان در دسترس است:

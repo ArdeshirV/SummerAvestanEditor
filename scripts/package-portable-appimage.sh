@@ -33,7 +33,7 @@ fi
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 install -m 0755 "$BINARY" "$APPDIR/usr/bin/avestan-editor"
-install -m 0644 "$ROOT/Icon.png" \
+install -m 0644 "$ROOT/img/Icon.png" \
     "$APPDIR/usr/share/icons/hicolor/256x256/apps/summer-avestan-editor.png"
 cat > "$APPDIR/usr/share/applications/summer-avestan-editor.desktop" <<'EOF'
 [Desktop Entry]

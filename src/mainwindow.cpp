@@ -198,7 +198,7 @@ void MainWindow::buildUi()
     statusBar()->addWidget(m_status);
 
     setWindowTitle(config.appName());
-    setWindowIcon(QIcon(QStringLiteral(":/Icon.png")));
+    setWindowIcon(QIcon(QStringLiteral(":/img/Icon.png")));
     resize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
            static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
 }
@@ -674,7 +674,7 @@ void MainWindow::showAboutDialog()
 
     auto *icon = new QLabel(&dialog);
     const int iconSize = static_cast<int>(config.number(QStringLiteral("about_icon_size")));
-    icon->setPixmap(QPixmap(QStringLiteral(":/Icon.png"))
+    icon->setPixmap(QPixmap(QStringLiteral(":/img/Icon.png"))
                         .scaled(iconSize, iconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     auto *name = new QLabel(config.appName(), &dialog);

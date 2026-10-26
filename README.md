@@ -43,8 +43,8 @@ Architecture-specific targets are `linux-amd64 linux-arm64 linux-386`,
 `termux-arm64 termux-arm arm termux-amd64`, `windows-amd64 windows-arm64
 windows-386`, and `android-arm64 android-arm android-amd64`. Cross builds need a
 Qt kit built for the target, so point the relevant variable at that kit's qmake.
-The Windows qmake project embeds `Icon.ico` as the executable icon. Regenerate it
-from `Icon.png` with `python3 scripts/create-windows-icon.py` (requires libpng):
+The Windows qmake project embeds `img/Icon.ico` as the executable icon. Regenerate it
+from `img/Icon.png` with `python3 scripts/create-windows-icon.py` (requires libpng):
 
 ```sh
 python3 scripts/create-windows-icon.py

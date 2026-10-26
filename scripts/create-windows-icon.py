@@ -108,7 +108,7 @@ def dib_image(rgba, size):
 
 def main():
     root = Path(__file__).resolve().parent.parent
-    source, destination = root / 'Icon.png', root / 'Icon.ico'
+    source, destination = root / 'img/Icon.png', root / 'img/Icon.ico'
     try:
         sw, sh, pixels = png_rgba(source)
         sizes = (256, 128, 64, 48, 32, 16)

@@ -18,7 +18,7 @@ set(AVESTAN_ASSETS
     assets/fonts/FONT-SOURCES.txt
     assets/fonts/LICENSE.txt
     assets/ethereum-donation.png
-    Icon.png
+    img/Icon.png
 )
 
 add_library(avestan-core STATIC

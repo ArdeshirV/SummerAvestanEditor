@@ -11,6 +11,6 @@
         <file>assets/fonts/FONT-SOURCES.txt</file>
         <file>assets/fonts/LICENSE.txt</file>
         <file>assets/ethereum-donation.png</file>
-        <file>Icon.png</file>
+        <file>img/Icon.png</file>
     </qresource>
 </RCC>
