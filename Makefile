@@ -154,6 +154,8 @@ define android_build
 		$(MAKE) -j"$(JOBS)"
 	@if command -v "$(ANDROIDDEPLOYQT)" >/dev/null 2>&1; then \
 		cd "$(DIST)/build/Android-$(1)" && \
+		mkdir -p "android-build/libs/$(2)" && \
+		cp "libavestan-editor_$(2).so" "android-build/libs/$(2)/" && \
 		$(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
 			--output "$(CURDIR)/$(DIST)/build/Android-$(1)/android-build" \
 			--apk --android-platform "android-$(ANDROID_API)" \
