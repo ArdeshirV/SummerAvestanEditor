@@ -10,7 +10,9 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QCloseEvent>
+#include <QCursor>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -38,6 +40,7 @@
 #include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QVBoxLayout>
 
 namespace {
@@ -735,6 +738,35 @@ void MainWindow::showAboutDialog()
     copyrightLabel->setOpenExternalLinks(true);
     copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     layout->addWidget(copyrightLabel);
+
+    auto *donationTitle = new QLabel(QStringLiteral("Please Donate!"), &dialog);
+    QFont donationTitleFont = donationTitle->font();
+    donationTitleFont.setBold(true);
+    donationTitle->setFont(donationTitleFont);
+    layout->addWidget(donationTitle);
+    auto *donationDescription = new QLabel(
+        QStringLiteral("We truly appreciate and thank you for any donation you can give to our project."),
+        &dialog);
+    donationDescription->setWordWrap(true);
+    layout->addWidget(donationDescription);
+    auto *donationImage = new QLabel(&dialog);
+    const int donationSize = static_cast<int>(config.number(QStringLiteral("donation_image_size")));
+    donationImage->setPixmap(QPixmap(QStringLiteral(":/assets/ethereum-donation.png"))
+                                 .scaled(donationSize, donationSize, Qt::KeepAspectRatio,
+                                         Qt::SmoothTransformation));
+    donationImage->setAlignment(Qt::AlignCenter);
+    layout->addWidget(donationImage);
+    const QString donationAddress = QStringLiteral("0x6E6465394D14975956cd1BD37ab4E35F2C60300E");
+    auto *donationAddressLabel = new QLabel(
+        QStringLiteral("Ethereum <a href=\"copy-address\">%1</a>").arg(donationAddress),
+        &dialog);
+    donationAddressLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connect(donationAddressLabel, &QLabel::linkActivated, this,
+            [&dialog, donationAddress](const QString &) {
+                QApplication::clipboard()->setText(donationAddress);
+                QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
+            });
+    layout->addWidget(donationAddressLabel);
 
     auto *link = new QLabel(
         QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
