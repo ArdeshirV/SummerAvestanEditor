@@ -175,8 +175,8 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_searchRow = new QHBoxLayout();
     m_searchRow->setContentsMargins(0, 0, 0, 0);
     m_searchRow->addWidget(m_searchField, 1);
-    auto *backspaceButton = new QPushButton(QStringLiteral("Backspace"), this);
-    auto *deleteButton = new QPushButton(QStringLiteral("Delete"), this);
+    auto *backspaceButton = new QPushButton(QStringLiteral("Back"), this);
+    auto *deleteButton = new QPushButton(QStringLiteral("Del"), this);
     auto *enterButton = new QPushButton(QStringLiteral("Enter"), this);
     m_searchRow->addWidget(backspaceButton);
     m_searchRow->addWidget(deleteButton);
@@ -227,7 +227,7 @@ void KeyboardPanel::setSearchTrailingWidget(QWidget *widget)
 {
     if (m_searchRow && widget) {
         widget->setParent(this);
-        m_searchRow->addWidget(widget);
+        m_searchRow->insertWidget(3, widget);
     }
 }
 

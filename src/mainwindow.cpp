@@ -26,6 +26,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMenu>
 #include <QPushButton>
 #include <QPixmap>
 #include <QSaveFile>
@@ -156,11 +157,20 @@ void MainWindow::buildUi()
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
     connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
 
-    topLayout->addWidget(new QPushButton(openAction->text(), topBar));
-    topLayout->addWidget(new QPushButton(saveAction->text(), topBar));
-    topLayout->addWidget(new QPushButton(saveAsAction->text(), topBar));
-    topLayout->addWidget(new QPushButton(settingsAction->text(), topBar));
-    topLayout->addWidget(new QPushButton(aboutAction->text(), topBar));
+    auto *menuButton = new QToolButton(topBar);
+    menuButton->setText(QStringLiteral("☰"));
+    menuButton->setToolTip(QStringLiteral("Menu"));
+    auto *menu = new QMenu(menuButton);
+    menu->addAction(openAction);
+    menu->addAction(saveAction);
+    menu->addAction(saveAsAction);
+    menu->addAction(settingsAction);
+    menu->addAction(aboutAction);
+    menu->addSeparator();
+    menu->addAction(exitAction);
+    menuButton->setMenu(menu);
+    menuButton->setPopupMode(QToolButton::InstantPopup);
+    topLayout->addWidget(menuButton);
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
     m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
@@ -168,18 +178,6 @@ void MainWindow::buildUi()
     m_keyboardToggle->setText(config.string(QStringLiteral("hide_keys")));
     m_keyboardToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
     topLayout->addStretch(1);
-    auto *exitButton = new QPushButton(exitAction->text(), topBar);
-    topLayout->addWidget(exitButton);
-
-    // Wire buttons to the same actions so keyboard and click share one path.
-    const auto buttons = topBar->findChildren<QPushButton *>();
-    const QList<QAction *> actionOrder = {openAction, saveAction, saveAsAction,
-                                          settingsAction, aboutAction, exitAction};
-    for (int index = 0; index < actionOrder.size() && index < buttons.size(); ++index) {
-        buttons.at(index)->setToolTip(actionOrder.at(index)->text());
-        connect(buttons.at(index), &QPushButton::clicked, actionOrder.at(index),
-                &QAction::trigger);
-    }
     connect(m_rtlCheck, &QCheckBox::toggled, this, &MainWindow::toggleRightToLeft);
     connect(languageSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [](int index) {
@@ -203,10 +201,6 @@ void MainWindow::buildUi()
     languageBar->setFont(languageBarFont);
     languageLayout->addWidget(new QLabel(config.string(QStringLiteral("language")), languageBar));
     languageLayout->addWidget(languageSelect, 1);
-    auto *insertCodePointButton = new QPushButton(insertCodePointAction->text(), languageBar);
-    insertCodePointButton->setToolTip(insertCodePointAction->text());
-    connect(insertCodePointButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
-    languageLayout->addWidget(insertCodePointButton);
     m_keyboardToggle->setParent(languageBar);
     m_keyboardToggle->setToolTip(m_keyboardToggle->text());
     languageLayout->addWidget(m_keyboardToggle);
@@ -222,6 +216,7 @@ void MainWindow::buildUi()
     setWindowTitle(config.appName());
     setWindowIcon(QIcon(QStringLiteral(":/img/Icon.png")));
     setMinimumWidth(static_cast<int>(config.number(QStringLiteral("minimum_window_width"))));
+    setMinimumHeight(static_cast<int>(config.number(QStringLiteral("minimum_window_height"))));
     const QSize defaultSize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
                             static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
     resize(applicationSettings().value(QStringLiteral("main_window_size"), defaultSize).toSize());
@@ -231,6 +226,10 @@ void MainWindow::buildUi()
     languageSelect->view()->setMinimumHeight(0);
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
     languageSelect->view()->window()->setMaximumHeight(qMax(1, height() * 4 / 5));
+    auto *unicodeButton = new QPushButton(insertCodePointAction->text(), m_keyboard);
+    unicodeButton->setToolTip(insertCodePointAction->text());
+    connect(unicodeButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
+    m_keyboard->setSearchTrailingWidget(unicodeButton);
 }
 
 void MainWindow::applyPreferences()
