@@ -7,6 +7,7 @@
 #include "unicode_util.h"
 
 #include <QAction>
+#include <QAbstractItemView>
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -48,6 +49,15 @@ QString preference(const QString &key)
 QSettings applicationSettings()
 {
     return QSettings();
+}
+
+QString defaultEditorFontSize()
+{
+#ifdef Q_OS_ANDROID
+    return QStringLiteral("12");
+#else
+    return QStringLiteral("8");
+#endif
 }
 
 // A dialog that can also be dismissed with Escape, Return or the keypad Enter.
@@ -215,6 +225,12 @@ void MainWindow::buildUi()
     const QSize defaultSize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
                             static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
     resize(applicationSettings().value(QStringLiteral("main_window_size"), defaultSize).toSize());
+    languageSelect->setMaximumHeight(qMax(1, height() / 5));
+    languageSelect->setMaxVisibleItems(5);
+    languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    languageSelect->view()->setMinimumHeight(0);
+    languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
+    languageSelect->view()->window()->setMaximumHeight(qMax(1, height() * 4 / 5));
 }
 
 void MainWindow::applyPreferences()
@@ -278,10 +294,10 @@ void MainWindow::applyEditorFont()
     const Config &config = Config::instance();
     QSettings settings = applicationSettings();
     bool sizeIsValid = false;
-    double pointSize = settings.value(preference(QStringLiteral("font_size")), QStringLiteral("8"))
+    double pointSize = settings.value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
                            .toString().toDouble(&sizeIsValid);
     if (!sizeIsValid || pointSize <= 0) {
-        pointSize = config.number(QStringLiteral("editor_base_font_point_size"));
+        pointSize = defaultEditorFontSize().toDouble();
     }
 
     QFont font = m_editor->font();
@@ -578,7 +594,7 @@ void MainWindow::showSettingsDialog()
     auto *sizeSelect = new QComboBox(&dialog);
     sizeSelect->addItems(config.fontSizeOptions());
     sizeSelect->setCurrentText(
-        settings.value(preference(QStringLiteral("font_size")), QStringLiteral("8"))
+        settings.value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
             .toString());
     sizeRow->addWidget(sizeSelect, 1);
     layout->addLayout(sizeRow);

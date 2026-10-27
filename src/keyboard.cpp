@@ -11,6 +11,8 @@
 #include <QListView>
 #include <QPainter>
 #include <QPen>
+#include <QPushButton>
+#include <QTextCursor>
 #include <QSortFilterProxyModel>
 #include <QVBoxLayout>
 
@@ -173,6 +175,35 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_searchRow = new QHBoxLayout();
     m_searchRow->setContentsMargins(0, 0, 0, 0);
     m_searchRow->addWidget(m_searchField, 1);
+    auto *backspaceButton = new QPushButton(QStringLiteral("Backspace"), this);
+    auto *deleteButton = new QPushButton(QStringLiteral("Delete"), this);
+    auto *enterButton = new QPushButton(QStringLiteral("Enter"), this);
+    m_searchRow->addWidget(backspaceButton);
+    m_searchRow->addWidget(deleteButton);
+    m_searchRow->addWidget(enterButton);
+    connect(backspaceButton, &QPushButton::clicked, this, [this]() {
+        QTextCursor cursor = m_editor->textCursor();
+        if (cursor.hasSelection()) {
+            cursor.removeSelectedText();
+        } else if (cursor.position() > 0) {
+            cursor.deletePreviousChar();
+        }
+        m_editor->setTextCursor(cursor);
+        m_editor->setFocus();
+    });
+    connect(deleteButton, &QPushButton::clicked, this, [this]() {
+        QTextCursor cursor = m_editor->textCursor();
+        if (cursor.hasSelection()) {
+            cursor.removeSelectedText();
+        } else {
+            cursor.deleteChar();
+        }
+        m_editor->setTextCursor(cursor);
+        m_editor->setFocus();
+    });
+    connect(enterButton, &QPushButton::clicked, this, [this]() {
+        m_editor->insertTextAtCaret(QStringLiteral("\n"));
+    });
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
