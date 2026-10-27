@@ -174,6 +174,8 @@ void MainWindow::buildUi()
     menuButton->setMenu(menu);
     menuButton->setPopupMode(QToolButton::InstantPopup);
     topLayout->addWidget(menuButton);
+    m_fileNameLabel = new QLabel(config.string(QStringLiteral("untitled")), topBar);
+    topLayout->addWidget(m_fileNameLabel);
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
     m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
@@ -192,9 +194,6 @@ void MainWindow::buildUi()
     auto *centralLayout = new QVBoxLayout(central);
     centralLayout->setContentsMargins(0, 0, 0, 0);
     centralLayout->setSpacing(0);
-    m_fileNameLabel = new QLabel(config.string(QStringLiteral("untitled")), central);
-    m_fileNameLabel->setAlignment(Qt::AlignCenter);
-    centralLayout->addWidget(m_fileNameLabel);
     centralLayout->addWidget(topBar);
     auto *languageBar = new QWidget(central);
     auto *languageLayout = new QHBoxLayout(languageBar);
