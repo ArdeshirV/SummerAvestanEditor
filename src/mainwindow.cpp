@@ -105,7 +105,16 @@ void MainWindow::buildUi()
     connect(m_recoveryTimer, &QTimer::timeout, this, &MainWindow::saveRecoveryDraft);
     connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
         if (!m_loading) {
+            QTextCursor cursor = m_editor->textCursor();
+            if (cursor.position() > 0) {
+                cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+                const QVector<uint> entered = cursor.selectedText().toUcs4();
+                if (!entered.isEmpty()) {
+                    m_lastEnteredCodePoint = entered.constLast();
+                }
+            }
             setDirty(true);
+            updateStatus();
             if (applicationSettings().value(QStringLiteral("autosave_enabled"), true).toBool()) {
                 m_recoveryTimer->start();
             }
@@ -140,6 +149,7 @@ void MainWindow::buildUi()
     auto *insertCodePointAction = new QAction(config.string(QStringLiteral("insert_unicode")), this);
     insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
     auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
+    settingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
     auto *aboutAction = new QAction(config.string(QStringLiteral("about")), this);
     aboutAction->setShortcut(QKeySequence(Qt::Key_F1));
     auto *exitAction = new QAction(config.string(QStringLiteral("exit")), this);
@@ -149,6 +159,7 @@ void MainWindow::buildUi()
     addAction(saveAction);
     addAction(saveAsAction);
     addAction(insertCodePointAction);
+    addAction(settingsAction);
     addAction(aboutAction);
     addAction(exitAction);
 
@@ -167,6 +178,7 @@ void MainWindow::buildUi()
     menu->addAction(openAction);
     menu->addAction(saveAction);
     menu->addAction(saveAsAction);
+    menu->addSeparator();
     menu->addAction(settingsAction);
     menu->addAction(aboutAction);
     menu->addSeparator();
@@ -485,9 +497,8 @@ void MainWindow::updateStatus()
     const QByteArray markerBytes = marker.toUtf8();
     const QByteArray encodingBytes = encodingName(m_encoding).toUtf8();
     QString lastCharacterInfo = QStringLiteral("—");
-    const QVector<uint> scalars = m_editor->toPlainText().toUcs4();
-    if (!scalars.isEmpty()) {
-        const uint codePoint = scalars.constLast();
+    if (m_lastEnteredCodePoint != 0) {
+        const uint codePoint = m_lastEnteredCodePoint;
         const QString code = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
         const QString characterName = config.unicodeCharacterName(codePoint);
         lastCharacterInfo = code + QStringLiteral(" — ")

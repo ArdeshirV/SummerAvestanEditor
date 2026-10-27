@@ -97,7 +97,7 @@
   "numbers": {
     "keyboard_columns": 5,
     "initial_window_width": 600,
-    "minimum_window_width": 423,
+    "minimum_window_width": 212,
     "initial_window_height": 760,
     "minimum_window_height": 380,
     "default_editor_fraction": 0.3,
