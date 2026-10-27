@@ -506,7 +506,7 @@ void MainWindow::updateStatus()
     }
     const QByteArray lastCharacterBytes = lastCharacterInfo.toUtf8();
     m_status->setText(QString::asprintf(format.constData(), markerBytes.constData(),
-                                       encodingBytes.constData(), codePoints,
+                                       codePoints, encodingBytes.constData(),
                                        lastCharacterBytes.constData()));
 }
 
@@ -780,6 +780,12 @@ void MainWindow::showAboutDialog()
     donationImage->setAlignment(Qt::AlignCenter);
     layout->addWidget(donationImage);
     const QString donationAddress = QStringLiteral("0x6E6465394D14975956cd1BD37ab4E35F2C60300E");
+    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy"), &dialog);
+    layout->addWidget(copyDonationButton, 0, Qt::AlignHCenter);
+    connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
+        QApplication::clipboard()->setText(donationAddress);
+        QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
+    });
     auto *donationAddressLabel = new QLabel(
         QStringLiteral("Ethereum <a href=\"copy-address\">%1</a>").arg(donationAddress),
         &dialog);
@@ -796,7 +802,7 @@ void MainWindow::showAboutDialog()
         QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
     link->setOpenExternalLinks(true);
     link->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    layout->addWidget(link);
+    layout->addWidget(link, 0, Qt::AlignHCenter);
 
     layout->addSpacing(QFontMetrics(dialog.font()).height());
 
