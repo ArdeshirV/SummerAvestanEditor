@@ -244,7 +244,7 @@ void MainWindow::buildUi()
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
     languageSelect->view()->window()->setMaximumHeight(qMax(1, height() * 4 / 5));
     auto *unicodeButton = new QPushButton(insertCodePointAction->text(), m_keyboard);
-    unicodeButton->setToolTip(insertCodePointAction->text());
+    unicodeButton->setToolTip(QStringLiteral("Unicode+ code..."));
     connect(unicodeButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
     m_keyboard->setSearchTrailingWidget(unicodeButton);
 }
@@ -307,7 +307,6 @@ void MainWindow::applyTheme()
 
 void MainWindow::applyEditorFont()
 {
-    const Config &config = Config::instance();
     QSettings settings = applicationSettings();
     bool sizeIsValid = false;
     double pointSize = settings.value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
@@ -506,7 +505,7 @@ void MainWindow::updateStatus()
     }
     const QByteArray lastCharacterBytes = lastCharacterInfo.toUtf8();
     m_status->setText(QString::asprintf(format.constData(), markerBytes.constData(),
-                                       codePoints, encodingBytes.constData(),
+                                       encodingBytes.constData(), codePoints,
                                        lastCharacterBytes.constData()));
 }
 

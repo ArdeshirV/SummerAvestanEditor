@@ -176,7 +176,9 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_searchRow->setContentsMargins(0, 0, 0, 0);
     m_searchRow->addWidget(m_searchField, 1);
     auto *backspaceButton = new QPushButton(QStringLiteral("Back"), this);
+    backspaceButton->setToolTip(QStringLiteral("Backspace"));
     auto *deleteButton = new QPushButton(QStringLiteral("Del"), this);
+    deleteButton->setToolTip(QStringLiteral("Delete"));
     auto *enterButton = new QPushButton(QStringLiteral("Enter"), this);
     m_searchRow->addWidget(backspaceButton);
     m_searchRow->addWidget(deleteButton);

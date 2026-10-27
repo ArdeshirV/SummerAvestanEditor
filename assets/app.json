@@ -31,7 +31,7 @@
     "untitled_filename": "untitled.txt",
     "untitled": "Untitled",
     "dirty_marker": " •",
-    "status_format": "%s   %d Code   |   %s   |   %s",
+    "status_format": "%s   %s   |   %d Code   |   %s",
     "theme_dark": "Metallic Dark",
     "theme_light": "Metallic Light",
     "theme_system": "System",
