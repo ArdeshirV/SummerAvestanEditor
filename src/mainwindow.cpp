@@ -174,8 +174,11 @@ void MainWindow::buildUi()
     menuButton->setMenu(menu);
     menuButton->setPopupMode(QToolButton::InstantPopup);
     topLayout->addWidget(menuButton);
+    topLayout->addStretch(1);
     m_fileNameLabel = new QLabel(config.string(QStringLiteral("untitled")), topBar);
+    m_fileNameLabel->setAlignment(Qt::AlignCenter);
     topLayout->addWidget(m_fileNameLabel);
+    topLayout->addStretch(1);
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
     m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
@@ -737,6 +740,7 @@ void MainWindow::showAboutDialog()
     copyrightLabel->setOpenExternalLinks(true);
     copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     layout->addWidget(copyrightLabel);
+    layout->addSpacing(QFontMetrics(dialog.font()).height());
 
     auto *donationTitle = new QLabel(QStringLiteral("Please Donate!"), &dialog);
     QFont donationTitleFont = donationTitle->font();
@@ -766,6 +770,7 @@ void MainWindow::showAboutDialog()
                 QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
             });
     layout->addWidget(donationAddressLabel);
+    layout->addSpacing(QFontMetrics(dialog.font()).height());
 
     auto *link = new QLabel(
         QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
@@ -780,6 +785,7 @@ void MainWindow::showAboutDialog()
                                                   * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
     layout->addWidget(closeButton, 0, Qt::AlignRight);
     connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    layout->setAlignment(closeButton, Qt::AlignHCenter);
 
     dialog.exec();
 }
