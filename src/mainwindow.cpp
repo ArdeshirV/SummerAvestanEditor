@@ -484,10 +484,19 @@ void MainWindow::updateStatus()
     const QByteArray format = config.string(QStringLiteral("status_format")).toUtf8();
     const QByteArray markerBytes = marker.toUtf8();
     const QByteArray encodingBytes = encodingName(m_encoding).toUtf8();
-    const QByteArray versionBytes = config.string(QStringLiteral("unicode_data_version")).toUtf8();
+    QString lastCharacterInfo = QStringLiteral("—");
+    const QVector<uint> scalars = m_editor->toPlainText().toUcs4();
+    if (!scalars.isEmpty()) {
+        const uint codePoint = scalars.constLast();
+        const QString code = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+        const QString characterName = config.unicodeCharacterName(codePoint);
+        lastCharacterInfo = code + QStringLiteral(" — ")
+            + (characterName.isEmpty() ? QStringLiteral("unnamed character") : characterName);
+    }
+    const QByteArray lastCharacterBytes = lastCharacterInfo.toUtf8();
     m_status->setText(QString::asprintf(format.constData(), markerBytes.constData(),
-                                       encodingBytes.constData(), versionBytes.constData(),
-                                       codePoints));
+                                       encodingBytes.constData(), codePoints,
+                                       lastCharacterBytes.constData()));
 }
 
 void MainWindow::toggleRightToLeft(bool enabled)
