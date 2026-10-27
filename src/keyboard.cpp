@@ -170,11 +170,15 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
         static_cast<int>(config.number(QStringLiteral("keyboard_key_height")))));
     m_view->setSpacing(4);
 
+    m_searchRow = new QHBoxLayout();
+    m_searchRow->setContentsMargins(0, 0, 0, 0);
+    m_searchRow->addWidget(m_searchField, 1);
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
     layout->addLayout(m_languageRow);
-    layout->addWidget(m_searchField);
+    layout->addLayout(m_searchRow);
     layout->addWidget(m_view, 1);
 
     connect(m_searchField, &QLineEdit::textChanged, m_filterModel,
@@ -185,6 +189,14 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
 
     if (m_languageSelect->count() > 0) {
         setLanguage(0);
+    }
+}
+
+void KeyboardPanel::setSearchTrailingWidget(QWidget *widget)
+{
+    if (m_searchRow && widget) {
+        widget->setParent(this);
+        m_searchRow->addWidget(widget);
     }
 }
 

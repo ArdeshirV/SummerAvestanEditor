@@ -63,6 +63,7 @@ public:
     QComboBox *takeLanguageSelector();
     QListView *characterView() const { return m_view; }
     QLineEdit *searchField() const { return m_searchField; }
+    void setSearchTrailingWidget(QWidget *widget);
 
 signals:
     void languageChanged(int index);
@@ -76,6 +77,7 @@ private:
     QLabel *m_languageLabel = nullptr;
     QHBoxLayout *m_languageRow = nullptr;
     QLineEdit *m_searchField;
+    QHBoxLayout *m_searchRow = nullptr;
     QListView *m_view;
     QSortFilterProxyModel *m_filterModel;
     CharacterModel *m_model;

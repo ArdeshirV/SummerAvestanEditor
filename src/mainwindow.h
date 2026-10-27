@@ -52,6 +52,7 @@ private:
     QSplitter *m_splitter = nullptr;
     QCheckBox *m_rtlCheck = nullptr;
     QLabel *m_status = nullptr;
+    QLabel *m_fileNameLabel = nullptr;
     QToolButton *m_keyboardToggle = nullptr;
     QTimer *m_recoveryTimer = nullptr;
 

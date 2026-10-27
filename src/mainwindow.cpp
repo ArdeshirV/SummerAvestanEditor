@@ -113,6 +113,9 @@ void MainWindow::buildUi()
     auto *topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(6, 4, 6, 4);
     topLayout->setSpacing(6);
+    QFont topBarFont = topBar->font();
+    topBarFont.setPointSizeF(topBarFont.pointSizeF() * 0.8);
+    topBar->setFont(topBarFont);
 
     auto *openAction = new QAction(config.string(QStringLiteral("open")), this);
     openAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_O));
@@ -120,7 +123,7 @@ void MainWindow::buildUi()
     saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
     auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
     saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
-    auto *insertCodePointAction = new QAction(QStringLiteral("Insert U+…"), this);
+    auto *insertCodePointAction = new QAction(config.string(QStringLiteral("insert_unicode")), this);
     insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
     auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
     auto *aboutAction = new QAction(config.string(QStringLiteral("about")), this);
@@ -150,11 +153,11 @@ void MainWindow::buildUi()
     topLayout->addWidget(new QPushButton(aboutAction->text(), topBar));
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
+    m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
     m_keyboardToggle = new QToolButton(this);
-    m_keyboardToggle->setText(QStringLiteral("Hide keyboard"));
+    m_keyboardToggle->setText(config.string(QStringLiteral("hide_keys")));
     m_keyboardToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
     topLayout->addStretch(1);
-
     auto *exitButton = new QPushButton(exitAction->text(), topBar);
     topLayout->addWidget(exitButton);
 
@@ -163,6 +166,7 @@ void MainWindow::buildUi()
     const QList<QAction *> actionOrder = {openAction, saveAction, saveAsAction,
                                           settingsAction, aboutAction, exitAction};
     for (int index = 0; index < actionOrder.size() && index < buttons.size(); ++index) {
+        buttons.at(index)->setToolTip(actionOrder.at(index)->text());
         connect(buttons.at(index), &QPushButton::clicked, actionOrder.at(index),
                 &QAction::trigger);
     }
@@ -177,16 +181,24 @@ void MainWindow::buildUi()
     auto *centralLayout = new QVBoxLayout(central);
     centralLayout->setContentsMargins(0, 0, 0, 0);
     centralLayout->setSpacing(0);
+    m_fileNameLabel = new QLabel(config.string(QStringLiteral("untitled")), central);
+    m_fileNameLabel->setAlignment(Qt::AlignCenter);
+    centralLayout->addWidget(m_fileNameLabel);
     centralLayout->addWidget(topBar);
     auto *languageBar = new QWidget(central);
     auto *languageLayout = new QHBoxLayout(languageBar);
     languageLayout->setContentsMargins(8, 3, 8, 3);
+    QFont languageBarFont = languageBar->font();
+    languageBarFont.setPointSizeF(languageBarFont.pointSizeF() * 0.8);
+    languageBar->setFont(languageBarFont);
     languageLayout->addWidget(new QLabel(config.string(QStringLiteral("language")), languageBar));
     languageLayout->addWidget(languageSelect, 1);
     auto *insertCodePointButton = new QPushButton(insertCodePointAction->text(), languageBar);
+    insertCodePointButton->setToolTip(insertCodePointAction->text());
     connect(insertCodePointButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
     languageLayout->addWidget(insertCodePointButton);
     m_keyboardToggle->setParent(languageBar);
+    m_keyboardToggle->setToolTip(m_keyboardToggle->text());
     languageLayout->addWidget(m_keyboardToggle);
     m_rtlCheck->setParent(languageBar);
     languageLayout->addWidget(m_rtlCheck);
@@ -199,8 +211,10 @@ void MainWindow::buildUi()
 
     setWindowTitle(config.appName());
     setWindowIcon(QIcon(QStringLiteral(":/img/Icon.png")));
-    resize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
-           static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
+    setMinimumWidth(static_cast<int>(config.number(QStringLiteral("minimum_window_width"))));
+    const QSize defaultSize(static_cast<int>(config.number(QStringLiteral("initial_window_width"))),
+                            static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
+    resize(applicationSettings().value(QStringLiteral("main_window_size"), defaultSize).toSize());
 }
 
 void MainWindow::applyPreferences()
@@ -263,21 +277,11 @@ void MainWindow::applyEditorFont()
 {
     const Config &config = Config::instance();
     QSettings settings = applicationSettings();
-    const QString choice =
-        settings.value(preference(QStringLiteral("font_size")), config.string(QStringLiteral("font_size_medium")))
-            .toString();
-
-    double scale = config.number(QStringLiteral("font_scale_medium"));
-    if (choice == QStringLiteral("Tiny")) {
-        scale = config.number(QStringLiteral("font_scale_tiny"));
-    } else if (choice == config.string(QStringLiteral("font_size_small"))) {
-        scale = config.number(QStringLiteral("font_scale_small"));
-    } else if (choice == config.string(QStringLiteral("font_size_large"))) {
-        scale = config.number(QStringLiteral("font_scale_large"));
-    } else if (choice == QStringLiteral("Extra Large")) {
-        scale = config.number(QStringLiteral("font_scale_extra_large"));
-    } else if (choice == QStringLiteral("Huge")) {
-        scale = config.number(QStringLiteral("font_scale_huge"));
+    bool sizeIsValid = false;
+    double pointSize = settings.value(preference(QStringLiteral("font_size")), QStringLiteral("8"))
+                           .toString().toDouble(&sizeIsValid);
+    if (!sizeIsValid || pointSize <= 0) {
+        pointSize = config.number(QStringLiteral("editor_base_font_point_size"));
     }
 
     QFont font = m_editor->font();
@@ -285,7 +289,7 @@ void MainWindow::applyEditorFont()
     if (!family.isEmpty()) {
         font.setFamily(family);
     }
-    font.setPointSizeF(config.number(QStringLiteral("editor_base_font_point_size")) * scale);
+    font.setPointSizeF(pointSize);
     m_editor->setFont(font);
 }
 
@@ -403,8 +407,9 @@ void MainWindow::toggleKeyboard()
 {
     const bool showKeyboard = !m_keyboard->isVisible();
     m_keyboard->setVisible(showKeyboard);
-    m_keyboardToggle->setText(showKeyboard ? QStringLiteral("Hide keyboard")
-                                           : QStringLiteral("Show keyboard"));
+    m_keyboardToggle->setText(showKeyboard
+                                  ? Config::instance().string(QStringLiteral("hide_keys"))
+                                  : Config::instance().string(QStringLiteral("show_keys")));
     if (!showKeyboard) {
         m_editor->setFocus();
     }
@@ -454,15 +459,15 @@ void MainWindow::updateStatus()
     }
     const QString marker = m_dirty ? config.string(QStringLiteral("dirty_marker"))
                                    : config.string(QStringLiteral("empty"));
+    m_fileNameLabel->setText(name + marker);
     const int codePoints = codePointCount(m_editor->toPlainText());
     const QByteArray format = config.string(QStringLiteral("status_format")).toUtf8();
-    const QByteArray nameBytes = name.toUtf8();
     const QByteArray markerBytes = marker.toUtf8();
     const QByteArray encodingBytes = encodingName(m_encoding).toUtf8();
     const QByteArray versionBytes = config.string(QStringLiteral("unicode_data_version")).toUtf8();
-    m_status->setText(QString::asprintf(format.constData(), nameBytes.constData(),
-                                       markerBytes.constData(), encodingBytes.constData(),
-                                       versionBytes.constData(), codePoints));
+    m_status->setText(QString::asprintf(format.constData(), markerBytes.constData(),
+                                       encodingBytes.constData(), versionBytes.constData(),
+                                       codePoints));
 }
 
 void MainWindow::toggleRightToLeft(bool enabled)
@@ -573,14 +578,14 @@ void MainWindow::showSettingsDialog()
     auto *sizeSelect = new QComboBox(&dialog);
     sizeSelect->addItems(config.fontSizeOptions());
     sizeSelect->setCurrentText(
-        settings.value(preference(QStringLiteral("font_size")), config.string(QStringLiteral("font_size_medium")))
+        settings.value(preference(QStringLiteral("font_size")), QStringLiteral("8"))
             .toString());
     sizeRow->addWidget(sizeSelect, 1);
     layout->addLayout(sizeRow);
 
-    // "Font" label above a horizontal row of the two font buttons.
-    layout->addWidget(new QLabel(config.string(QStringLiteral("font")), &dialog));
+    // Font label starts the row, before the font buttons.
     auto *fontRow = new QHBoxLayout();
+    fontRow->addWidget(new QLabel(config.string(QStringLiteral("font")), &dialog));
     auto *fontFileButton = new QPushButton(config.string(QStringLiteral("font_file_button")), &dialog);
     auto *bundledButton = new QPushButton(config.string(QStringLiteral("font_bundled_button")), &dialog);
     fontRow->addWidget(fontFileButton);
@@ -698,7 +703,10 @@ void MainWindow::showAboutDialog()
     // Render the author handle inside the copyright line as a link to the
     // project's author page.
     QString copyright = config.copyright().toHtmlEscaped();
-    const QString handle = config.authorHandle();
+    QString handle = config.authorHandle();
+    if (handle.startsWith(QLatin1Char('@'))) {
+        handle.remove(0, 1);
+    }
     if (!handle.isEmpty()) {
         const int handleIndex = copyright.indexOf(handle.toHtmlEscaped());
         if (handleIndex >= 0) {
@@ -758,6 +766,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
         const double fraction = static_cast<double>(m_splitter->sizes().value(0))
             / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
         settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+        settings.setValue(QStringLiteral("main_window_size"), size());
         if (!m_currentPath.isEmpty()) {
             settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
             settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
@@ -802,6 +811,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     const double fraction = static_cast<double>(m_splitter->sizes().value(0))
         / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
     settings.setValue(preference(QStringLiteral("split_offset")), fraction);
+    settings.setValue(QStringLiteral("main_window_size"), size());
     if (!m_currentPath.isEmpty()) {
         settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
         settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());

@@ -18,6 +18,10 @@ HEADERS += \
 
 RESOURCES += $$PWD/resources.qrc
 
+android {
+    ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+}
+
 win32 {
     RC_FILE = $$PWD/avestan-editor.rc
 }
