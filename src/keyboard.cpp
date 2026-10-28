@@ -5,6 +5,8 @@
 
 #include <QComboBox>
 #include <QFontMetrics>
+#include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -14,7 +16,63 @@
 #include <QPushButton>
 #include <QTextCursor>
 #include <QSortFilterProxyModel>
+#include <QScreen>
 #include <QVBoxLayout>
+
+namespace {
+
+class AnchoredLanguageComboBox : public QComboBox {
+public:
+    using QComboBox::QComboBox;
+
+    void showPopup() override
+    {
+        if (!m_popup) {
+            m_popup = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
+            m_popup->setFrameShape(QFrame::Box);
+            auto *layout = new QVBoxLayout(m_popup);
+            layout->setContentsMargins(1, 1, 1, 1);
+            m_list = new QListView(m_popup);
+            m_list->setModel(model());
+            m_list->setSelectionMode(QAbstractItemView::SingleSelection);
+            m_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            layout->addWidget(m_list);
+            connect(m_list, &QListView::clicked, this, [this](const QModelIndex &index) {
+                setCurrentIndex(index.row());
+                hidePopup();
+                emit activated(index.row());
+                emit textActivated(currentText());
+            });
+        }
+
+        m_list->setCurrentIndex(model()->index(currentIndex(), modelColumn()));
+        const QFontMetrics metrics(m_list->font());
+        const int rowHeight = qMax(metrics.height() + 8, m_list->sizeHintForRow(0));
+        const int rows = qMin(count(), 10);
+        QScreen *screen = QGuiApplication::screenAt(mapToGlobal(rect().bottomLeft()));
+        if (!screen) screen = QGuiApplication::primaryScreen();
+        if (!screen) return;
+        const QRect bounds = screen->availableGeometry();
+        const QPoint origin = mapToGlobal(QPoint(0, height()));
+        const int popupHeight = qMax(rowHeight, qMin(rows * rowHeight + 2,
+                                                     bounds.bottom() - origin.y() + 1));
+        m_popup->setGeometry(qBound(bounds.left(), origin.x(), bounds.right() - width() + 1),
+                             origin.y(), width(), popupHeight);
+        m_popup->show();
+        m_list->scrollTo(m_list->currentIndex());
+    }
+
+    void hidePopup() override
+    {
+        if (m_popup) m_popup->hide();
+    }
+
+private:
+    QFrame *m_popup = nullptr;
+    QListView *m_list = nullptr;
+};
+
+} // namespace
 
 QString keyLabelForCodePoint(uint codePoint)
 {
@@ -133,7 +191,7 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
 {
     const Config &config = Config::instance();
 
-    m_languageSelect = new QComboBox(this);
+    m_languageSelect = new AnchoredLanguageComboBox(this);
     for (const LanguageDefinition &language : config.languages()) {
         m_languageSelect->addItem(config.languageOptionName(language));
     }
