@@ -52,6 +52,7 @@ TERMUX_SPEC     ?=
 ANDROID_SPEC    ?= android-clang
 ANDROID_NDK_ROOT ?= $(if $(ANDROID_NDK_HOME),$(ANDROID_NDK_HOME),$(HOME)/Documents/Apps/Android/ndk)
 ANDROID_PACKAGE_TYPE ?= apk
+ANDROID_PACKAGE_TYPE ?= apk
 ANDROID_API     ?= 23
 ANDROID_ABI     ?= arm64-v8a
 ANDROID_ARCH    ?= arm64
@@ -151,6 +152,10 @@ android-arm:
 android-amd64:
 	$(call android_build,amd64,x86_64)
 
+# Build a Google Play Android App Bundle instead of an APK.
+android-bundle: ANDROID_PACKAGE_TYPE = aab
+android-bundle: android-arm64
+
 # (1) arch label, (2) Android ABI.
 define android_build
 	@test -n "$(ANDROID_NDK_ROOT)" \
@@ -170,12 +175,12 @@ define android_build
 		cp "libavestan-editor_$(2).so" "android-build/libs/$(2)/" && \
 		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM JAVA_HOME="$(ANDROID_JAVA_HOME)" $(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
 			--output "$(CURDIR)/$(DIST)/build/Android-$(1)/android-build" \
-			--apk --android-platform "android-$(ANDROID_API)" \
+			--$(ANDROID_PACKAGE_TYPE) --android-platform "android-$(ANDROID_API)" \
 			$(if $(ANDROID_NDK_ROOT),--ndk "$(ANDROID_NDK_ROOT)",); \
-		apk=$$(find "$(CURDIR)/$(DIST)/build/Android-$(1)" -name '*.apk' | head -n 1); \
-		test -n "$$apk" || { echo "error: androiddeployqt produced no APK"; exit 1; }; \
-		cp "$$apk" "$(CURDIR)/$(DIST)/$(APP)-Android-$(1).apk"; \
-		echo ">>> $(DIST)/$(APP)-Android-$(1).apk"; \
+		package=$$(find "$(CURDIR)/$(DIST)/build/Android-$(1)" -name '*.$(if $(filter aab,$(ANDROID_PACKAGE_TYPE)),aab,apk)' | head -n 1); \
+		test -n "$$package" || { echo "error: androiddeployqt produced no $(ANDROID_PACKAGE_TYPE) package"; exit 1; }; \
+		cp "$$package" "$(CURDIR)/$(DIST)/$(APP)-Android-$(1).$(if $(filter aab,$(ANDROID_PACKAGE_TYPE)),aab,apk)"; \
+		echo ">>> $(DIST)/$(APP)-Android-$(1).$(if $(filter aab,$(ANDROID_PACKAGE_TYPE)),aab,apk)"; \
 	else \
 		echo "note: $(ANDROIDDEPLOYQT) not found; native libraries were built but no APK was packaged."; \
 		find "$(DIST)/build/Android-$(1)" -name 'libavestan-editor_*.so' -exec cp {} "$(DIST)/" \; ; \
