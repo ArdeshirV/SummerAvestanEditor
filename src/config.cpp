@@ -340,13 +340,19 @@ const QVector<uint> &Config::charactersFor(const LanguageDefinition &language) c
     }
 
     QVector<uint> characters;
+    // The all-printable range is a single continuous range, so a hash set for
+    // duplicate detection needlessly multiplies its peak memory on mobile.
+    const bool canHaveDuplicates = language.ranges.size() > 1;
     QSet<uint> seen;
     bool hasSpace = false;
     const auto append = [&](uint codePoint) {
-        if (!QChar::isPrint(codePoint) || seen.contains(codePoint)) {
+        if (!QChar::isPrint(codePoint)
+            || (canHaveDuplicates && seen.contains(codePoint))) {
             return;
         }
-        seen.insert(codePoint);
+        if (canHaveDuplicates) {
+            seen.insert(codePoint);
+        }
         characters.append(codePoint);
         hasSpace = hasSpace || codePoint == ' ';
     };
