@@ -238,7 +238,7 @@ void MainWindow::buildUi()
     languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     languageSelect->view()->setMinimumHeight(0);
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
-    languageSelect->view()->window()->setMaximumHeight(qMax(1, height() * 4 / 5));
+
     auto *unicodeButton = new QPushButton(insertCodePointAction->text(), m_keyboard);
     unicodeButton->setToolTip(QStringLiteral("Unicode+ code..."));
     connect(unicodeButton, &QPushButton::clicked, insertCodePointAction, &QAction::trigger);
@@ -494,12 +494,8 @@ void MainWindow::updateStatus()
     QString currentCharacterInfo = QStringLiteral("—");
     QTextCursor cursor = m_editor->textCursor();
     const int documentEnd = m_editor->document()->characterCount() - 1;
-    if (documentEnd > 0) {
-        if (cursor.position() < documentEnd) {
-            cursor.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
-        } else {
-            cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
-        }
+    if (documentEnd > 0 && cursor.position() > 0) {
+        cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
         const QVector<uint> scalars = cursor.selectedText().toUcs4();
         if (!scalars.isEmpty()) {
             const uint codePoint = scalars.constLast();
