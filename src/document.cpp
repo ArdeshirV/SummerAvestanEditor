@@ -265,6 +265,11 @@ bool readDocumentFile(const QString &path, QString &text, TextEncoding &encoding
 bool writeDocumentFile(const QString &path, const QString &text, TextEncoding encoding, QString &error)
 {
     QSaveFile file(path);
+#ifdef Q_OS_ANDROID
+    // SAF document-provider URIs are virtual files and cannot be atomically
+    // replaced. Allow Qt to write directly through the provider instead.
+    file.setDirectWriteFallback(true);
+#endif
     if (!file.open(QIODevice::WriteOnly)) {
         error = file.errorString();
         return false;
