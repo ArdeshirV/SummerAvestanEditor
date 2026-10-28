@@ -236,6 +236,7 @@ void MainWindow::buildUi()
     languageSelect->setMaximumHeight(qMax(1, height() / 5));
     languageSelect->setMaxVisibleItems(5);
     languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    languageSelect->view()->setMaximumHeight(languageSelect->fontMetrics().height() * 6);
     languageSelect->view()->setMinimumHeight(0);
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
 
