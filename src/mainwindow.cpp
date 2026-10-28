@@ -58,11 +58,7 @@ QSettings applicationSettings()
 
 QString defaultEditorFontSize()
 {
-#ifdef Q_OS_ANDROID
-    return QStringLiteral("8");
-#else
     return QStringLiteral("10");
-#endif
 }
 
 // A dialog that can also be dismissed with Escape, Return or the keypad Enter.
