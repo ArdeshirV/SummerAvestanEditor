@@ -234,7 +234,6 @@ void MainWindow::buildUi()
                             static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
     resize(applicationSettings().value(QStringLiteral("main_window_size"), defaultSize).toSize());
     languageSelect->setMaximumHeight(qMax(1, height() / 5));
-    languageSelect->setMaxVisibleItems(10);
     languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     languageSelect->view()->setMinimumHeight(0);
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
