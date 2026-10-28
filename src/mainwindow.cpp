@@ -200,7 +200,6 @@ void MainWindow::buildUi()
     m_keyboardToggle = new QToolButton(this);
     m_keyboardToggle->setText(config.string(QStringLiteral("hide_keys")));
     m_keyboardToggle->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    topLayout->addStretch(1);
     connect(m_rtlCheck, &QCheckBox::toggled, this, &MainWindow::toggleRightToLeft);
     connect(languageSelect, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [](int index) {
