@@ -21,6 +21,7 @@
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QInputDialog>
@@ -133,7 +134,7 @@ void MainWindow::buildUi()
     // the far right.
     auto *topBar = new QWidget(this);
     topBar->setObjectName(QStringLiteral("TopBar"));
-    auto *topLayout = new QHBoxLayout(topBar);
+    auto *topLayout = new QGridLayout(topBar);
     topLayout->setContentsMargins(6, 4, 6, 4);
     topLayout->setSpacing(6);
     QFont topBarFont = topBar->font();
@@ -185,15 +186,14 @@ void MainWindow::buildUi()
     menu->addAction(exitAction);
     menuButton->setMenu(menu);
     menuButton->setPopupMode(QToolButton::InstantPopup);
-    topLayout->addWidget(menuButton);
-    topLayout->addStretch(1);
+    topLayout->setColumnStretch(0, 1);
+    topLayout->setColumnStretch(1, 1);
+    topLayout->setColumnStretch(2, 1);
+    topLayout->addWidget(menuButton, 0, 0, Qt::AlignLeft | Qt::AlignVCenter);
     m_fileNameLabel = new QLabel(config.string(QStringLiteral("untitled")), topBar);
     m_fileNameLabel->setAlignment(Qt::AlignCenter);
-    topLayout->addWidget(m_fileNameLabel);
-    topLayout->addStretch(1);
-    auto *titleBalance = new QWidget(topBar);
-    titleBalance->setFixedWidth(menuButton->sizeHint().width());
-    topLayout->addWidget(titleBalance);
+    topLayout->addWidget(m_fileNameLabel, 0, 1);
+    topLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum), 0, 2);
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
     m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
@@ -782,22 +782,16 @@ void MainWindow::showAboutDialog()
     donationImage->setAlignment(Qt::AlignCenter);
     layout->addWidget(donationImage);
     const QString donationAddress = QStringLiteral("0x6E6465394D14975956cd1BD37ab4E35F2C60300E");
-    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy"), &dialog);
+    auto *donationAddressLabel = new QLabel(
+        QStringLiteral("Ethereum %1").arg(donationAddress), &dialog);
+    layout->addWidget(donationAddressLabel);
+    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy to clipboard"), &dialog);
+    copyDonationButton->setFixedWidth(donationSize);
     layout->addWidget(copyDonationButton, 0, Qt::AlignHCenter);
     connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
         QApplication::clipboard()->setText(donationAddress);
         QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
     });
-    auto *donationAddressLabel = new QLabel(
-        QStringLiteral("Ethereum <a href=\"copy-address\">%1</a>").arg(donationAddress),
-        &dialog);
-    donationAddressLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    connect(donationAddressLabel, &QLabel::linkActivated, this,
-            [&dialog, donationAddress](const QString &) {
-                QApplication::clipboard()->setText(donationAddress);
-                QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
-            });
-    layout->addWidget(donationAddressLabel);
     layout->addSpacing(QFontMetrics(dialog.font()).height());
 
     auto *link = new QLabel(
