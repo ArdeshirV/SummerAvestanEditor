@@ -61,7 +61,6 @@ private:
     bool m_dirty = false;
     bool m_loading = false;
     bool m_restorePromptShown = false;
-    uint m_lastEnteredCodePoint = 0;
     QString m_recoveryPath;
 
     QString m_bundledFamily;

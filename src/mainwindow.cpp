@@ -104,16 +104,9 @@ void MainWindow::buildUi()
     m_recoveryTimer->setSingleShot(true);
     m_recoveryTimer->setInterval(1500);
     connect(m_recoveryTimer, &QTimer::timeout, this, &MainWindow::saveRecoveryDraft);
+    connect(m_editor, &QPlainTextEdit::cursorPositionChanged, this, &MainWindow::updateStatus);
     connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
         if (!m_loading) {
-            QTextCursor cursor = m_editor->textCursor();
-            if (cursor.position() > 0) {
-                cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
-                const QVector<uint> entered = cursor.selectedText().toUcs4();
-                if (!entered.isEmpty()) {
-                    m_lastEnteredCodePoint = entered.constLast();
-                }
-            }
             setDirty(true);
             updateStatus();
             if (applicationSettings().value(QStringLiteral("autosave_enabled"), true).toBool()) {
@@ -230,6 +223,11 @@ void MainWindow::buildUi()
     setCentralWidget(central);
 
     m_status = new QLabel(config.string(QStringLiteral("empty")), this);
+    m_status->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    m_status->setOpenExternalLinks(false);
+    connect(m_status, &QLabel::linkActivated, this, [](const QString &code) {
+        QApplication::clipboard()->setText(code);
+    });
     statusBar()->addWidget(m_status);
 
     setWindowTitle(config.appName());
@@ -497,18 +495,30 @@ void MainWindow::updateStatus()
     const QByteArray format = config.string(QStringLiteral("status_format")).toUtf8();
     const QByteArray markerBytes = marker.toUtf8();
     const QByteArray encodingBytes = encodingName(m_encoding).toUtf8();
-    QString lastCharacterInfo = QStringLiteral("—");
-    if (m_lastEnteredCodePoint != 0) {
-        const uint codePoint = m_lastEnteredCodePoint;
-        const QString code = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
-        const QString characterName = config.unicodeCharacterName(codePoint);
-        lastCharacterInfo = code + QStringLiteral(" — ")
-            + (characterName.isEmpty() ? QStringLiteral("unnamed character") : characterName);
+    QString currentCharacterInfo = QStringLiteral("—");
+    QTextCursor cursor = m_editor->textCursor();
+    const int documentEnd = m_editor->document()->characterCount() - 1;
+    if (documentEnd > 0) {
+        if (cursor.position() < documentEnd) {
+            cursor.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor);
+        } else {
+            cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::KeepAnchor);
+        }
+        const QVector<uint> scalars = cursor.selectedText().toUcs4();
+        if (!scalars.isEmpty()) {
+            const uint codePoint = scalars.constLast();
+            const QString code = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+            const QString characterName = config.unicodeCharacterName(codePoint);
+            currentCharacterInfo = QStringLiteral("<a href=\"%1\">%1</a> — %2")
+                .arg(code.toHtmlEscaped(),
+                     (characterName.isEmpty() ? QStringLiteral("unnamed character")
+                                              : characterName).toHtmlEscaped());
+        }
     }
-    const QByteArray lastCharacterBytes = lastCharacterInfo.toUtf8();
+    const QByteArray currentCharacterBytes = currentCharacterInfo.toUtf8();
     m_status->setText(QString::asprintf(format.constData(), markerBytes.constData(),
                                        encodingBytes.constData(), codePoints,
-                                       lastCharacterBytes.constData()));
+                                       currentCharacterBytes.constData()));
 }
 
 void MainWindow::toggleRightToLeft(bool enabled)
