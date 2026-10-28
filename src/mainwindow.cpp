@@ -113,6 +113,7 @@ void MainWindow::buildUi()
 
     m_keyboard = new KeyboardPanel(m_editor, this);
     QComboBox *languageSelect = m_keyboard->takeLanguageSelector();
+    languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     m_splitter = new QSplitter(Qt::Vertical, this);
     m_splitter->addWidget(m_editor);
