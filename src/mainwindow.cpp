@@ -730,7 +730,7 @@ void MainWindow::showAboutDialog()
     nameFont.setBold(true);
     name->setFont(nameFont);
 
-    auto *version = new QLabel(config.appVersion(), &dialog);
+    auto *version = new QLabel(QStringLiteral("Version ") + config.appVersion(), &dialog);
 
     auto *headerText = new QVBoxLayout();
     headerText->addWidget(name);
