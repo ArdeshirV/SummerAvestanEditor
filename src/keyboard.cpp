@@ -5,6 +5,7 @@
 
 #include <QComboBox>
 #include <QFontMetrics>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -14,7 +15,35 @@
 #include <QPushButton>
 #include <QTextCursor>
 #include <QSortFilterProxyModel>
+#include <QScreen>
 #include <QVBoxLayout>
+
+namespace {
+
+class BelowPopupComboBox : public QComboBox {
+public:
+    using QComboBox::QComboBox;
+
+    void showPopup() override
+    {
+        QComboBox::showPopup();
+        QWidget *popup = view()->window();
+        QScreen *screen = QGuiApplication::screenAt(mapToGlobal(rect().center()));
+        if (!screen) {
+            screen = QGuiApplication::primaryScreen();
+        }
+        if (!popup || !screen) {
+            return;
+        }
+        const QRect available = screen->availableGeometry();
+        const QPoint below = mapToGlobal(QPoint(0, height()));
+        const int popupHeight = qMin(popup->sizeHint().height(), available.bottom() - below.y() + 1);
+        popup->setGeometry(below.x(), below.y(), width(), qMax(1, popupHeight));
+        popup->raise();
+    }
+};
+
+} // namespace
 
 QString keyLabelForCodePoint(uint codePoint)
 {
@@ -133,7 +162,7 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
 {
     const Config &config = Config::instance();
 
-    m_languageSelect = new QComboBox(this);
+    m_languageSelect = new BelowPopupComboBox(this);
     for (const LanguageDefinition &language : config.languages()) {
         m_languageSelect->addItem(config.languageOptionName(language));
     }
