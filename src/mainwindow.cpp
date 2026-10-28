@@ -37,7 +37,6 @@
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
-#include <QStyleFactory>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
@@ -235,11 +234,8 @@ void MainWindow::buildUi()
                             static_cast<int>(config.number(QStringLiteral("initial_window_height"))));
     resize(applicationSettings().value(QStringLiteral("main_window_size"), defaultSize).toSize());
     languageSelect->setMaximumHeight(qMax(1, height() / 5));
-    languageSelect->setMaxVisibleItems(5);
     languageSelect->view()->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    languageSelect->view()->setMinimumHeight(0);
-    languageSelect->view()->setMaximumHeight(languageSelect->fontMetrics().height() * 6);
-    languageSelect->setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
+    languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
     languageSelect->view()->setMinimumHeight(0);
     languageSelect->view()->setMaximumHeight(qMax(1, height() * 4 / 5));
 
