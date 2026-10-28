@@ -663,6 +663,16 @@
       ]
     },
     {
+      "name": "Braille",
+      "ranges": [
+        [
+          10240,
+          10495
+        ]
+      ],
+      "sample": "⠿⠁⠃"
+    },
+    {
       "name": "General Unicode Symbols",
       "ranges": [
         [
