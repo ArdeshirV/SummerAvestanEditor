@@ -60,6 +60,7 @@ __pycache__/
 *.py[cod]
 
 # Avestan Editor build outputs
+/err/
 !Makefile
 /build-qmake/
 /dist/
