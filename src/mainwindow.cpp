@@ -760,6 +760,7 @@ void MainWindow::showAboutDialog()
     auto *copyrightLabel = new QLabel(copyright, &dialog);
     copyrightLabel->setOpenExternalLinks(true);
     copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    copyrightLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(copyrightLabel);
     layout->addSpacing(QFontMetrics(dialog.font()).height());
 
