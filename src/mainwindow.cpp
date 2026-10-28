@@ -58,9 +58,9 @@ QSettings applicationSettings()
 QString defaultEditorFontSize()
 {
 #ifdef Q_OS_ANDROID
-    return QStringLiteral("12");
-#else
     return QStringLiteral("8");
+#else
+    return QStringLiteral("10");
 #endif
 }
 
@@ -191,6 +191,9 @@ void MainWindow::buildUi()
     m_fileNameLabel->setAlignment(Qt::AlignCenter);
     topLayout->addWidget(m_fileNameLabel);
     topLayout->addStretch(1);
+    auto *titleBalance = new QWidget(topBar);
+    titleBalance->setFixedWidth(menuButton->sizeHint().width());
+    topLayout->addWidget(titleBalance);
 
     m_rtlCheck = new QCheckBox(config.string(QStringLiteral("right_to_left")), this);
     m_rtlCheck->setToolTip(QStringLiteral("Right to left"));
