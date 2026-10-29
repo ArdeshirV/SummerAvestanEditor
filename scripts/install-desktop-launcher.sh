@@ -13,11 +13,17 @@ fi
 APP_DIR="$HOME/.local/opt/summer-avestan-editor"
 BIN="$APP_DIR/SummerAvestanEditor"
 ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+MIME_ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/mimetypes"
+MIME_DIR="$HOME/.local/share/mime/packages"
 DESKTOP_DIR="$HOME/.local/share/applications"
 DESKTOP_FILE="$DESKTOP_DIR/summer-avestan-editor.desktop"
-mkdir -p "$APP_DIR" "$ICON_DIR" "$DESKTOP_DIR"
+mkdir -p "$APP_DIR" "$ICON_DIR" "$MIME_ICON_DIR" "$MIME_DIR" "$DESKTOP_DIR"
 install -m 0755 "$SOURCE_BIN" "$BIN"
 install -m 0644 "$ROOT/img/Icon.png" "$ICON_DIR/summer-avestan-editor.png"
+install -m 0644 "$ROOT/img/Icon.png" "$MIME_ICON_DIR/application-x-avestan.png"
+install -m 0644 "$ROOT/scripts/ave-mime.xml" "$MIME_DIR/avestan-editor.xml"
+command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$HOME/.local/share/mime" || true
+command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor" || true
 
 # Desktop Entry Exec fields must quote paths containing whitespace and escape
 # characters that have special meaning in the Desktop Entry specification.

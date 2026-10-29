@@ -1,15 +1,18 @@
 param(
     [Parameter(Mandatory=$true, Position=0)]
-    [string]$Executable
+    [string]$Executable,
+    [Parameter(Mandatory=$true, Position=1)]
+    [string]$Icon
 )
 $exe = (Resolve-Path $Executable).Path
+$ico = (Resolve-Path $Icon).Path
 $extensionKey = 'HKCU:\Software\Classes\.ave'
 $programKey = 'HKCU:\Software\Classes\AvestanEditor.Document'
 New-Item -Path $programKey -Force | Out-Null
 Set-Item -Path $programKey -Value 'Avestan text document'
 New-ItemProperty -Path $programKey -Name 'FriendlyTypeName' -Value 'Avestan text document' -PropertyType String -Force | Out-Null
 New-Item -Path "$programKey\DefaultIcon" -Force | Out-Null
-Set-Item -Path "$programKey\DefaultIcon" -Value "`"$exe`",0"
+Set-Item -Path "$programKey\DefaultIcon" -Value "`"$ico`",0"
 New-Item -Path "$programKey\shell\open\command" -Force | Out-Null
 Set-Item -Path "$programKey\shell\open\command" -Value "`"$exe`" `"%1`""
 New-Item -Path $extensionKey -Force | Out-Null

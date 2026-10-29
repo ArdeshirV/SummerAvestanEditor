@@ -2,6 +2,7 @@
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="application/x-avestan">
     <comment>Avestan text document</comment>
+    <icon name="application-x-avestan"/>
     <sub-class-of type="text/plain"/>
     <glob pattern="*.ave" weight="80"/>
   </mime-type>
