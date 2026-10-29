@@ -17,6 +17,7 @@
 #include <QTextCursor>
 #include <QSortFilterProxyModel>
 #include <QScreen>
+#include <QScrollBar>
 #include <QVBoxLayout>
 
 namespace {
@@ -59,6 +60,7 @@ public:
         m_popup->setGeometry(qBound(bounds.left(), origin.x(), bounds.right() - width() + 1),
                              origin.y(), width(), popupHeight);
         m_popup->show();
+        m_list->horizontalScrollBar()->setValue(0);
         m_list->scrollTo(m_list->currentIndex());
     }
 
