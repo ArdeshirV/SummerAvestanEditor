@@ -44,7 +44,7 @@ Exec=avestan-editor
 Icon=summer-avestan-editor
 Terminal=false
 Categories=Office;TextEditor;Utility;
-MimeType=text/plain;
+MimeType=text/plain;application/x-avestan;
 EOF
 
 export PATH="$TOOLS_DIR:$PATH"

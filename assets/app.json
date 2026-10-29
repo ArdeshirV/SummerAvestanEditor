@@ -45,7 +45,7 @@
     "font_bundled_button": "Use bundled font",
     "font_file_button": "Font file...",
     "font_filter": "Fonts (*.ttf *.otf)",
-    "document_filter": "Avestan documents (*.ave);;Text files (*.txt *.text);;All files (*)",
+    "document_filter": "Avestan and text files (*.ave *.txt *.text *.utf *.utf8 *.utf16 *.utf32 *.csv *.md *.log);;All files (*)",
     "unicode_data_version": "17.0",
     "font_settings_label": "Font size",
     "theme_settings_label": "Theme",

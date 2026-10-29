@@ -12,6 +12,9 @@ class QLabel;
 class QSplitter;
 class QTimer;
 class QToolButton;
+#ifdef Q_OS_ANDROID
+class SafBridge;
+#endif
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -27,6 +30,9 @@ private slots:
     void openDocument();
     void saveDocument();
     void saveDocumentAs();
+#ifdef Q_OS_ANDROID
+    void saveAsInSafFolder(const QString &folderUri);
+#endif
     void showSettingsDialog();
     void showAboutDialog();
     void toggleRightToLeft(bool enabled);
@@ -55,6 +61,10 @@ private:
     QLabel *m_fileNameLabel = nullptr;
     QToolButton *m_keyboardToggle = nullptr;
     QTimer *m_recoveryTimer = nullptr;
+#ifdef Q_OS_ANDROID
+    SafBridge *m_safBridge = nullptr;
+    bool m_safOverwritePending = false;
+#endif
 
     QString m_currentPath;
     TextEncoding m_encoding = TextEncoding::Utf8;

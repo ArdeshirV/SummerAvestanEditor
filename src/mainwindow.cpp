@@ -5,6 +5,9 @@
 #include "keyboard.h"
 #include "theme.h"
 #include "unicode_util.h"
+#ifdef Q_OS_ANDROID
+#include "../JNI/safbridge.h"
+#endif
 
 #include <QAction>
 #include <QAbstractItemView>
@@ -33,6 +36,7 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QPixmap>
 #include <QSaveFile>
 #include <QSettings>
@@ -89,6 +93,67 @@ MainWindow::MainWindow(QWidget *parent)
     m_recoveryPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/recovery.txt");
     QDir().mkpath(QFileInfo(m_recoveryPath).absolutePath());
+#ifdef Q_OS_ANDROID
+    m_safBridge = new SafBridge(this);
+    connect(m_safBridge, &SafBridge::documentCreated, this, [this](const QString &uri) {
+        const QString actualName = m_safBridge->displayName(uri);
+        static const QRegularExpression numberedCopy(QStringLiteral(" \\(\\d+\\)(?=\\.[^.]+$)"));
+        if (numberedCopy.match(actualName).hasMatch()) {
+            m_safBridge->deleteDocument(uri); // discard SAF's auto-renamed duplicate
+            const auto answer = QMessageBox::question(
+                this, QStringLiteral("File already exists"),
+                QStringLiteral("Android found a file with this name. Overwrite it?"),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (answer == QMessageBox::Yes) {
+                m_safOverwritePending = true;
+                m_safBridge->openDocument({}, false);
+            }
+            return;
+        }
+        const QByteArray bytes = encodeDocument(m_editor->toPlainText(), m_encoding);
+        if (!m_safBridge->writeAll(uri, bytes)) {
+            QMessageBox::critical(this, QStringLiteral("Save As"),
+                                  QStringLiteral("Android could not write the selected document."));
+            return;
+        }
+        setCurrentDocument(uri, m_encoding);
+        setDirty(false);
+        clearRecoveryDraft();
+    });
+    connect(m_safBridge, &SafBridge::documentsPicked, this, [this](const QStringList &uris) {
+        if (uris.isEmpty()) return;
+        if (m_safOverwritePending) {
+            m_safOverwritePending = false;
+            const QString uri = uris.first();
+            if (!m_safBridge->writeAll(uri, encodeDocument(m_editor->toPlainText(), m_encoding))) {
+                QMessageBox::critical(this, QStringLiteral("Save As"),
+                                      QStringLiteral("Could not overwrite the selected document."));
+                return;
+            }
+            setCurrentDocument(uri, m_encoding);
+            setDirty(false);
+            clearRecoveryDraft();
+            return;
+        }
+        QString text, error;
+        TextEncoding encoding = TextEncoding::Utf8;
+        if (!decodeDocument(m_safBridge->readAll(uris.first()), text, encoding, error)) {
+            QMessageBox::critical(this, QStringLiteral("Open"), error);
+            return;
+        }
+        m_loading = true;
+        m_editor->setPlainText(text);
+        m_loading = false;
+        setCurrentDocument(uris.first(), encoding);
+        setDirty(false);
+        clearRecoveryDraft();
+        m_editor->setFocus();
+    });
+    connect(m_safBridge, &SafBridge::saveFolderPicked, this, [this](const QString &folderUri) {
+        QTimer::singleShot(250, this, [this, folderUri] { saveAsInSafFolder(folderUri); });
+    });
+    connect(m_safBridge, &SafBridge::cancelled, this, [] {});
+#endif
     buildUi();
     applyPreferences();
 }
@@ -523,7 +588,12 @@ void MainWindow::updateStatus()
     const Config &config = Config::instance();
     QString name = config.string(QStringLiteral("untitled"));
     if (!m_currentPath.isEmpty()) {
+#ifdef Q_OS_ANDROID
+        name = m_safBridge->displayName(m_currentPath);
+        if (name.isEmpty()) name = m_currentPath;
+#else
         name = QFileInfo(m_currentPath).fileName();
+#endif
     }
     const QString marker = m_dirty ? config.string(QStringLiteral("dirty_marker"))
                                    : config.string(QStringLiteral("empty"));
@@ -564,6 +634,10 @@ void MainWindow::toggleRightToLeft(bool enabled)
 
 void MainWindow::openDocument()
 {
+#ifdef Q_OS_ANDROID
+    m_safBridge->openDocument({}, false);
+    return;
+#endif
     const Config &config = Config::instance();
     const QString path = QFileDialog::getOpenFileName(
         this, config.string(QStringLiteral("open")), m_currentPath,
@@ -600,6 +674,10 @@ void MainWindow::saveDocument()
 
 void MainWindow::saveDocumentAs()
 {
+#ifdef Q_OS_ANDROID
+    m_safBridge->pickSaveFolder();
+    return;
+#endif
     const Config &config = Config::instance();
     QFileDialog dialog(this, config.string(QStringLiteral("save_as")),
                        m_currentPath.isEmpty()
@@ -630,8 +708,79 @@ void MainWindow::saveDocumentAs()
     writeToPath(path);
 }
 
+#ifdef Q_OS_ANDROID
+void MainWindow::saveAsInSafFolder(const QString &folderUri)
+{
+    QString suggested = m_currentPath.isEmpty()
+        ? Config::instance().string(QStringLiteral("untitled_filename"))
+        : m_safBridge->displayName(m_currentPath);
+    if (QFileInfo(suggested).suffix().compare(QStringLiteral("ave"), Qt::CaseInsensitive) != 0)
+        suggested = QFileInfo(suggested).completeBaseName() + QStringLiteral(".ave");
+
+    bool accepted = false;
+    QString name = QInputDialog::getText(this, Config::instance().string(QStringLiteral("save_as")),
+                                         QStringLiteral("File name:"), QLineEdit::Normal,
+                                         suggested, &accepted).trimmed();
+    if (!accepted || name.isEmpty()) return;
+    if (QFileInfo(name).suffix().isEmpty()) name += QStringLiteral(".ave");
+
+    for (;;) {
+        const QVariantMap target = m_safBridge->resolveSaveTarget(folderUri, name, m_currentPath);
+        const QString status = target.value(QStringLiteral("status")).toString();
+        if (status == QLatin1String("same")) {
+            writeToPath(m_currentPath);
+            return;
+        }
+        if (status == QLatin1String("exists")) {
+            const auto answer = QMessageBox::question(
+                this, QStringLiteral("Overwrite file?"),
+                QStringLiteral("‘%1’ already exists. Overwrite it?")
+                    .arg(target.value(QStringLiteral("existingName")).toString()),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (answer == QMessageBox::Yes) {
+                writeToPath(target.value(QStringLiteral("uri")).toString());
+                return;
+            }
+            name = QInputDialog::getText(this, Config::instance().string(QStringLiteral("save_as")),
+                                         QStringLiteral("File name:"), QLineEdit::Normal,
+                                         name, &accepted).trimmed();
+            if (!accepted || name.isEmpty()) return;
+            if (QFileInfo(name).suffix().isEmpty()) name += QStringLiteral(".ave");
+            continue;
+        }
+        if (status != QLatin1String("new")) {
+            QMessageBox::critical(this, QStringLiteral("Save As"),
+                                  QStringLiteral("The selected folder or file name is not accessible."));
+            return;
+        }
+        const QString uri = m_safBridge->createFileExact(
+            folderUri, QStringLiteral("application/x-avestan"), name);
+        if (uri.isEmpty()) {
+            QMessageBox::critical(this, QStringLiteral("Save As"),
+                                  QStringLiteral("Could not create the file with the exact requested name."));
+            return;
+        }
+        writeToPath(uri);
+        return;
+    }
+}
+#endif
+
 bool MainWindow::writeToPath(const QString &path)
 {
+#ifdef Q_OS_ANDROID
+    if (path.startsWith(QStringLiteral("content://"))) {
+        if (!m_safBridge->writeAll(path, encodeDocument(m_editor->toPlainText(), m_encoding))) {
+            QMessageBox::critical(this, QStringLiteral("Save"),
+                                  QStringLiteral("Android could not write the selected document."));
+            return false;
+        }
+        setCurrentDocument(path, m_encoding);
+        setDirty(false);
+        clearRecoveryDraft();
+        return true;
+    }
+#endif
     const Config &config = Config::instance();
     QString error;
     if (!writeDocumentFile(path, m_editor->toPlainText(), m_encoding, error)) {

@@ -19,6 +19,9 @@ HEADERS += \
 RESOURCES += $$PWD/resources.qrc
 
 android {
+    QT += core-private
+    SOURCES += $$PWD/JNI/safbridge.cpp
+    HEADERS += $$PWD/JNI/safbridge.h
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
 }
 

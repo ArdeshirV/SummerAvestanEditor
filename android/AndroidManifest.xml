@@ -30,8 +30,17 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:mimeType="application/x-avestan" />
-                <data android:scheme="content" />
+                <data android:scheme="content" android:mimeType="application/x-avestan" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:pathPattern=".*\\.ave" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" android:pathPattern=".*\\.ave" />
             </intent-filter>
             <meta-data android:name="android.app.lib_name" android:value="avestan-editor" />
             <meta-data android:name="android.app.arguments" android:value="" />
