@@ -17,6 +17,8 @@
     "open": "Open",
     "save": "Save",
     "save_as": "Save As",
+    "android_save_as_existing_title": "Existing document",
+    "android_save_as_existing_message": "This document already exists. Open it first and use Save.",
     "font": "Font",
     "settings": "Settings",
     "about": "About",

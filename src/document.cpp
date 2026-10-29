@@ -275,9 +275,33 @@ bool writeDocumentFile(const QString &path, const QString &text, TextEncoding en
         return false;
     }
     const QByteArray data = encodeDocument(text, encoding);
-    if (file.write(data) != data.size() || !file.commit()) {
+    if (file.write(data) != data.size()) {
+        error = file.errorString();
+        return false;
+    }
+#ifdef Q_OS_ANDROID
+    // Some Android SAF providers reject replace/overwrite requests even though
+    // the returned URI points to an existing document. Fail early with a clear,
+    // actionable message rather than an opaque "Unknown error" from the backend.
+    if (!file.commit()) {
+        error = file.errorString();
+        if (error.isEmpty()) {
+            error = QStringLiteral("Failed to save file");
+        }
+        if (error.contains(QStringLiteral("Unknown error"), Qt::CaseInsensitive)
+            || error.contains(QStringLiteral("access denied"), Qt::CaseInsensitive)
+            || error.contains(QStringLiteral("permission"), Qt::CaseInsensitive)) {
+            const Config &config = Config::instance();
+            error = config.string(QStringLiteral("android_save_as_existing_message"));
+        }
+        return false;
+    }
+    return true;
+#else
+    if (!file.commit()) {
         error = file.errorString();
         return false;
     }
     return true;
+#endif
 }

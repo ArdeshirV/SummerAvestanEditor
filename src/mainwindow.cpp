@@ -135,10 +135,6 @@ void MainWindow::buildUi()
 
     auto *openAction = new QAction(config.string(QStringLiteral("open")), this);
     openAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_O));
-    auto *saveAction = new QAction(config.string(QStringLiteral("save")), this);
-    saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
-    auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
-    saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
     auto *insertCodePointAction = new QAction(config.string(QStringLiteral("insert_unicode")), this);
     insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
     auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
@@ -149,16 +145,12 @@ void MainWindow::buildUi()
     exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
 
     addAction(openAction);
-    addAction(saveAction);
-    addAction(saveAsAction);
     addAction(insertCodePointAction);
     addAction(settingsAction);
     addAction(aboutAction);
     addAction(exitAction);
 
     connect(openAction, &QAction::triggered, this, &MainWindow::openDocument);
-    connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
-    connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
 #ifdef Q_OS_ANDROID
     // Let the Android menu popup finish closing before creating another window.
     // Opening a modal dialog directly from QAction::triggered can overlap popup
@@ -194,8 +186,6 @@ void MainWindow::buildUi()
     menuButton->setToolTip(QStringLiteral("Menu"));
     auto *menu = new QMenu(menuButton);
     menu->addAction(openAction);
-    menu->addAction(saveAction);
-    menu->addAction(saveAsAction);
     menu->addSeparator();
     menu->addAction(settingsAction);
     menu->addAction(aboutAction);
