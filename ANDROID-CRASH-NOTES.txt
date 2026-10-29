@@ -1,29 +1,54 @@
-Android crash debugging notes (for the next LLM)
+# Qt Android debugging notes for future app development
 
-## Device and app
-- Device: Samsung SM-A145F, Android 15, ADB serial RF8W900N3EK.
-- Package: org.qtproject.example.avestan_editor.
-- Qt kit used: Android arm64, Qt 6.12.0.
+## Environment and reproduction
+- Tested on Samsung SM-A145F (Android 15).
+- App package: `org.qtproject.example.avestan_editor`.
+- Qt Android ARM64 kit: Qt 6.12.0.
+- Reproduce on the real device and inspect `adb logcat`; do not infer a fix from desktop builds alone.
 
-## Reproduced crash
-- Opening About crashes the app. Settings and popup interactions have also crashed.
-- Logcat: `/tmp/avestan-deferred-crash.log` (earlier reproduction: `/tmp/avestan-qt-crash.log`).
-- Native abort on Qt's main loop thread:
-  `SIGABRT: Failed to acquire deadlock protector for QAndroidPlatformOpenGLWindow::eglSurface()`
-- Log warns that `eglSurface()` is queried while `QAndroidInputContext::runOnQtThread()` holds the deadlock protector. Stack passes through `QOpenGLContext::makeCurrent`, Qt QRhi/backing-store flush and widget repaint. No OOM evidence.
-- Android popup and IME surfaces are being removed/hidden near the crash. This is a Qt Android EGL/input-method interaction, not established as an About-only or combo-only app bug.
+## 1) Native Qt crash when opening dialogs/popups
 
-## Changes tried
-1. Set `QT_WIDGETS_RHI=0` before QApplication as a diagnostic. Reverted it; it was not validated as a fix.
-2. Deferred Settings/About opening using `QTimer::singleShot(0, ...)`. Reproduced crash; this did not fix it.
-3. Current unverified test change in `src/mainwindow.cpp`: on Android, before opening Settings/About, call `QGuiApplication::inputMethod()->hide()`, clear the focused widget, then defer dialog creation by 250 ms. Build succeeded and APK was installed. This tests whether avoiding an IME transition concurrent with new-window creation prevents the crash. It is NOT confirmed fixed; user needs to retest About on the phone.
+### Evidence
+The initial crash log showed:
 
-## Latest reproduction (combo box)
-- User opened the language combo box and the app crashed again.
-- Log: `/tmp/avestan-combo-crash.log`.
-- Latest crash at 06:58:09 has the same abort: `Failed to acquire deadlock protector for QAndroidPlatformOpenGLWindow::eglSurface()`; stack includes `QPlatformBackingStore::rhiFlush` and `QWidgetRepaintManager::flush`.
-- This confirms the issue is not limited to About/Settings or their action timing. The Android input-method/EGL-backed QWidget repaint path is implicated across combo popup interactions too.
-- An earlier event in the same log (06:40) reports `FORTIFY: pthread_mutex_lock called on a destroyed mutex` on HWUI threads; distinguish that separate event from the latest reproduced EGL abort.
+```text
+Fatal signal 6 (SIGABRT)
+Failed to acquire deadlock protector for QAndroidPlatformOpenGLWindow::eglSurface().
+```
 
-## Next action
-Do not claim current workaround fixed anything. Investigate a rendering-path-level fix or Qt Android backend issue; reproduce with a minimal Qt Widgets Android app using a focused text editor and a combo/dialog. User has repeatedly reproduced on device. Logs: `/tmp/avestan-combo-crash.log`, `/tmp/avestan-deferred-crash.log`.
+Qt logged that `eglSurface()` was accessed while `QAndroidInputContext::runOnQtThread()` held the deadlock protector. Backtraces included `QOpenGLContext::makeCurrent`, Qt QRhi/backing-store flush, and QWidget repaint. This was not an OOM failure.
+
+### What was tested
+- Disabling Widgets RHI via `QT_WIDGETS_RHI=0` was tried as a diagnostic, then reverted; it was not a verified fix.
+- Deferring Settings/About alone did not eliminate the combo crash.
+- For Settings/About, the Android action now hides the input method, clears focus, and defers dialog creation by 250 ms. The user reported that Settings/About then appeared to work, pending more testing.
+- The language combo had a custom `QFrame(nullptr, Qt::Popup...)`, which created a separate Android popup window. Delays and IME dismissal did not fix this.
+
+### Confirmed combo mitigation
+For Android, changed the language dropdown to a child `QFrame` of the existing main window (`QFrame(window())`, `Qt::Widget`) and raised it over the UI. It uses the existing activity surface instead of creating a separate `Qt::Popup`/Android `PopupWindow`. Desktop keeps the original top-level popup implementation. The user reported the dropdown opened without an error and said the mitigation seemed to work, then requested more testing. Treat as promising device-tested mitigation, not a universal Qt fix.
+
+## 2) Android SAF Save As overwrite behavior
+
+### Observations
+- Saving normally and Save As to a new name worked.
+- Save As using an already-existing document produced an Android “Unknown error”.
+- On Android the writer now uses `QFile` opened with `WriteOnly | Truncate` instead of `QSaveFile` temp-file/rename, because SAF providers do not necessarily support atomic rename/replace. Desktop continues to use `QSaveFile`.
+- This direct write did not make duplicate-name replacement work: Android's create-document flow does not reliably grant permission to replace an existing SAF document.
+- A fallback that tried `QFileDialog::getOpenFileName` after the write failure behaved like another Save As picker on this device. It was removed; do not reintroduce it as an overwrite solution.
+
+### Current verified behavior / limitation
+- For an existing SAF document, use **Open** to obtain its writable URI, edit it, then use **Save**. This works; user confirmed the resulting guidance/flow worked.
+- If Save As cannot replace a selected existing file, the app now displays a clear message: open that file first, then use Save. New-name Save As still works.
+- True “Save As over an arbitrary existing SAF document” requires a correct Android Storage Access Framework flow (select existing URI via a genuine `ACTION_OPEN_DOCUMENT` result, confirm overwrite, then write that URI). Do not assume `QFileDialog::getSaveFileName` can replace existing documents.
+
+## Current source changes to know about
+- `src/keyboard.cpp`: Android combo dropdown is an in-window child overlay; desktop remains a `Qt::Popup`.
+- `src/mainwindow.cpp`: Android Settings/About defer after hiding IME and clearing focus; Android Save As reports that an existing document must be opened before using Save.
+- `src/document.cpp`: Android writes directly with `QFile` and truncation; other platforms retain atomic `QSaveFile` writes.
+- Android APK build/install via `make android-arm64` succeeded during these tests.
+
+## Debugging practice
+1. Clear Logcat, reproduce one action, then immediately save full `adb logcat -v threadtime` output.
+2. Separate native crashes from file-operation errors. Look for `FATAL EXCEPTION`, `Fatal signal`, `SIGABRT`, `SIGSEGV`, and Qt fatal messages; inspect the surrounding lines and stack.
+3. Change one Android-specific behavior at a time, rebuild/install the APK, and retest the exact action on-device.
+4. Report only what was verified on hardware. Preserve a working fallback and avoid claiming a platform-wide Qt defect from one device/Qt combination.
