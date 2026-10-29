@@ -30,6 +30,7 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QInputMethod>
+#include <QInputMethod>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -150,7 +151,10 @@ MainWindow::MainWindow(QWidget *parent)
         m_editor->setFocus();
     });
     connect(m_safBridge, &SafBridge::saveFolderPicked, this, [this](const QString &folderUri) {
-        QTimer::singleShot(250, this, [this, folderUri] { saveAsInSafFolder(folderUri); });
+        // Let the SAF activity and Android IME fully dismiss before creating a Qt dialog.
+        if (QApplication::focusWidget()) QApplication::focusWidget()->clearFocus();
+        if (QGuiApplication::inputMethod()) QGuiApplication::inputMethod()->hide();
+        QTimer::singleShot(500, this, [this, folderUri] { saveAsInSafFolder(folderUri); });
     });
     connect(m_safBridge, &SafBridge::cancelled, this, [] {});
 #endif
