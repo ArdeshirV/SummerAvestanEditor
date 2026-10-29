@@ -159,7 +159,6 @@ void MainWindow::buildUi()
     connect(openAction, &QAction::triggered, this, &MainWindow::openDocument);
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
-    connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
 #ifdef Q_OS_ANDROID
     // Let the Android menu popup finish closing before creating another window.
     // Opening a modal dialog directly from QAction::triggered can overlap popup
@@ -180,9 +179,13 @@ void MainWindow::buildUi()
     connect(aboutAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
         prepareForSecondaryWindow(&MainWindow::showAboutDialog);
     });
+    connect(insertCodePointAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
+        prepareForSecondaryWindow(&MainWindow::insertUnicodeCodePoint);
+    });
 #else
     connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+    connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
 #endif
     connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
 
