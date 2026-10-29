@@ -1,0 +1,29 @@
+Android crash debugging notes (for the next LLM)
+
+## Device and app
+- Device: Samsung SM-A145F, Android 15, ADB serial RF8W900N3EK.
+- Package: org.qtproject.example.avestan_editor.
+- Qt kit used: Android arm64, Qt 6.12.0.
+
+## Reproduced crash
+- Opening About crashes the app. Settings and popup interactions have also crashed.
+- Logcat: `/tmp/avestan-deferred-crash.log` (earlier reproduction: `/tmp/avestan-qt-crash.log`).
+- Native abort on Qt's main loop thread:
+  `SIGABRT: Failed to acquire deadlock protector for QAndroidPlatformOpenGLWindow::eglSurface()`
+- Log warns that `eglSurface()` is queried while `QAndroidInputContext::runOnQtThread()` holds the deadlock protector. Stack passes through `QOpenGLContext::makeCurrent`, Qt QRhi/backing-store flush and widget repaint. No OOM evidence.
+- Android popup and IME surfaces are being removed/hidden near the crash. This is a Qt Android EGL/input-method interaction, not established as an About-only or combo-only app bug.
+
+## Changes tried
+1. Set `QT_WIDGETS_RHI=0` before QApplication as a diagnostic. Reverted it; it was not validated as a fix.
+2. Deferred Settings/About opening using `QTimer::singleShot(0, ...)`. Reproduced crash; this did not fix it.
+3. Current unverified test change in `src/mainwindow.cpp`: on Android, before opening Settings/About, call `QGuiApplication::inputMethod()->hide()`, clear the focused widget, then defer dialog creation by 250 ms. Build succeeded and APK was installed. This tests whether avoiding an IME transition concurrent with new-window creation prevents the crash. It is NOT confirmed fixed; user needs to retest About on the phone.
+
+## Latest reproduction (combo box)
+- User opened the language combo box and the app crashed again.
+- Log: `/tmp/avestan-combo-crash.log`.
+- Latest crash at 06:58:09 has the same abort: `Failed to acquire deadlock protector for QAndroidPlatformOpenGLWindow::eglSurface()`; stack includes `QPlatformBackingStore::rhiFlush` and `QWidgetRepaintManager::flush`.
+- This confirms the issue is not limited to About/Settings or their action timing. The Android input-method/EGL-backed QWidget repaint path is implicated across combo popup interactions too.
+- An earlier event in the same log (06:40) reports `FORTIFY: pthread_mutex_lock called on a destroyed mutex` on HWUI threads; distinguish that separate event from the latest reproduced EGL abort.
+
+## Next action
+Do not claim current workaround fixed anything. Investigate a rendering-path-level fix or Qt Android backend issue; reproduce with a minimal Qt Widgets Android app using a focused text editor and a combo/dialog. User has repeatedly reproduced on device. Logs: `/tmp/avestan-combo-crash.log`, `/tmp/avestan-deferred-crash.log`.

@@ -4,9 +4,11 @@
 #include "unicode_util.h"
 
 #include <QComboBox>
+#include <QApplication>
 #include <QFontMetrics>
 #include <QFrame>
 #include <QGuiApplication>
+#include <QInputMethod>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -15,6 +17,7 @@
 #include <QPen>
 #include <QPushButton>
 #include <QTextCursor>
+#include <QTimer>
 #include <QSortFilterProxyModel>
 #include <QScreen>
 #include <QScrollBar>
@@ -27,6 +30,33 @@ public:
     using QComboBox::QComboBox;
 
     void showPopup() override
+    {
+#ifdef Q_OS_ANDROID
+        // Match the IME/surface workaround used for Settings and About: hide
+        // the keyboard and wait for Android's IME transition before creating
+        // the Qt::Popup native window.
+        if (QGuiApplication::inputMethod())
+            QGuiApplication::inputMethod()->hide();
+        if (QApplication::focusWidget())
+            QApplication::focusWidget()->clearFocus();
+        const int request = ++m_popupRequest;
+        QTimer::singleShot(250, this, [this, request] {
+            if (request == m_popupRequest)
+                showPopupNow();
+        });
+#else
+        showPopupNow();
+#endif
+    }
+
+    void hidePopup() override
+    {
+        ++m_popupRequest;
+        if (m_popup) m_popup->hide();
+    }
+
+private:
+    void showPopupNow()
     {
         if (!m_popup) {
             m_popup = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
@@ -64,12 +94,7 @@ public:
         m_list->scrollTo(m_list->currentIndex());
     }
 
-    void hidePopup() override
-    {
-        if (m_popup) m_popup->hide();
-    }
-
-private:
+    int m_popupRequest = 0;
     QFrame *m_popup = nullptr;
     QListView *m_list = nullptr;
 };

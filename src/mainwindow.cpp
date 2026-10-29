@@ -25,6 +25,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QInputDialog>
+#include <QInputMethod>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -41,6 +42,7 @@
 #include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
+#include <QTimer>
 #include <QToolTip>
 #include <QVBoxLayout>
 
@@ -158,8 +160,30 @@ void MainWindow::buildUi()
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
     connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
+#ifdef Q_OS_ANDROID
+    // Let the Android menu popup finish closing before creating another window.
+    // Opening a modal dialog directly from QAction::triggered can overlap popup
+    // surface teardown with Qt's Android EGL/input-context callbacks.
+    const auto prepareForSecondaryWindow = [this](auto showDialog) {
+        // Dismiss Android's IME before creating another native surface. Qt's
+        // Android EGL backend can abort if a surface is queried while the IME
+        // callback holds its runOnQtThread deadlock protector.
+        if (QGuiApplication::inputMethod())
+            QGuiApplication::inputMethod()->hide();
+        if (QApplication::focusWidget())
+            QApplication::focusWidget()->clearFocus();
+        QTimer::singleShot(250, this, showDialog);
+    };
+    connect(settingsAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
+        prepareForSecondaryWindow(&MainWindow::showSettingsDialog);
+    });
+    connect(aboutAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
+        prepareForSecondaryWindow(&MainWindow::showAboutDialog);
+    });
+#else
     connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+#endif
     connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
 
     auto *menuButton = new QToolButton(topBar);
