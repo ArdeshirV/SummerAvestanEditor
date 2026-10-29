@@ -5,6 +5,11 @@
 #include <QFile>
 #include <QSaveFile>
 #include <QStringConverter>
+#ifdef Q_OS_ANDROID
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <qcoreapplication_platform.h>
+#endif
 
 namespace {
 
@@ -264,41 +269,51 @@ bool readDocumentFile(const QString &path, QString &text, TextEncoding &encoding
 
 bool writeDocumentFile(const QString &path, const QString &text, TextEncoding encoding, QString &error)
 {
-    QSaveFile file(path);
-#ifdef Q_OS_ANDROID
-    // SAF document-provider URIs are virtual files and cannot be atomically
-    // replaced. Allow Qt to write directly through the provider instead.
-    file.setDirectWriteFallback(true);
-#endif
-    if (!file.open(QIODevice::WriteOnly)) {
-        error = file.errorString();
-        return false;
-    }
     const QByteArray data = encodeDocument(text, encoding);
-    if (file.write(data) != data.size()) {
-        error = file.errorString();
-        return false;
-    }
 #ifdef Q_OS_ANDROID
-    // Some Android SAF providers reject replace/overwrite requests even though
-    // the returned URI points to an existing document. Fail early with a clear,
-    // actionable message rather than an opaque "Unknown error" from the backend.
-    if (!file.commit()) {
+    if (path.startsWith(QStringLiteral("content://"))) {
+        QJniEnvironment env;
+        const QJniObject context = QNativeInterface::QAndroidApplication::context();
+        const QJniObject resolver = context.callObjectMethod(
+            "getContentResolver", "()Landroid/content/ContentResolver;");
+        const QJniObject javaPath = QJniObject::fromString(path);
+        const QJniObject uri = QJniObject::callStaticObjectMethod(
+            "android/net/Uri", "parse", "(Ljava/lang/String;)Landroid/net/Uri;",
+            javaPath.object<jstring>());
+        const QJniObject mode = QJniObject::fromString("wt");
+        const QJniObject stream = resolver.callObjectMethod(
+            "openOutputStream",
+            "(Landroid/net/Uri;Ljava/lang/String;)Ljava/io/OutputStream;",
+            uri.object<jobject>(), mode.object<jstring>());
+        if (!env.isValid() || !stream.isValid()) {
+            env.checkAndClearExceptions();
+            error = QStringLiteral("Android could not open the selected document for writing.");
+            return false;
+        }
+        jbyteArray bytes = env->NewByteArray(data.size());
+        env->SetByteArrayRegion(bytes, 0, data.size(),
+                                reinterpret_cast<const jbyte *>(data.constData()));
+        stream.callMethod<void>("write", "([B)V", bytes);
+        stream.callMethod<void>("flush", "()V");
+        stream.callMethod<void>("close", "()V");
+        env->DeleteLocalRef(bytes);
+        if (env.checkAndClearExceptions()) {
+            error = QStringLiteral("Android could not write the selected document.");
+            return false;
+        }
+        return true;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || file.write(data) != data.size() || !file.flush()) {
         error = file.errorString();
-        if (error.isEmpty()) {
-            error = QStringLiteral("Failed to save file");
-        }
-        if (error.contains(QStringLiteral("Unknown error"), Qt::CaseInsensitive)
-            || error.contains(QStringLiteral("access denied"), Qt::CaseInsensitive)
-            || error.contains(QStringLiteral("permission"), Qt::CaseInsensitive)) {
-            const Config &config = Config::instance();
-            error = config.string(QStringLiteral("android_save_as_existing_message"));
-        }
         return false;
     }
     return true;
 #else
-    if (!file.commit()) {
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size()
+        || !file.commit()) {
         error = file.errorString();
         return false;
     }

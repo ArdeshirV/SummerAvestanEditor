@@ -36,7 +36,7 @@ desktop_quote() {
     printf 'Exec=%s\n' "$(desktop_quote "$BIN")"
     printf 'Icon=%s\n' "$ICON_DIR/summer-avestan-editor.png"
     printf 'Terminal=false\nCategories=Office;TextEditor;Utility;\n'
-    printf 'MimeType=text/plain;\nStartupNotify=true\n'
+    printf 'MimeType=text/plain;application/x-avestan;\nStartupNotify=true\n'
 } > "$DESKTOP_FILE"
 chmod 0644 "$DESKTOP_FILE"
 command -v update-desktop-database >/dev/null 2>&1 && \

@@ -17,6 +17,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QUrl>
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDatabase>
@@ -135,6 +136,10 @@ void MainWindow::buildUi()
 
     auto *openAction = new QAction(config.string(QStringLiteral("open")), this);
     openAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_O));
+    auto *saveAction = new QAction(config.string(QStringLiteral("save")), this);
+    saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
+    auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
+    saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
     auto *insertCodePointAction = new QAction(config.string(QStringLiteral("insert_unicode")), this);
     insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
     auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
@@ -145,6 +150,8 @@ void MainWindow::buildUi()
     exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
 
     addAction(openAction);
+    addAction(saveAction);
+    addAction(saveAsAction);
     addAction(insertCodePointAction);
     addAction(settingsAction);
     addAction(aboutAction);
@@ -165,6 +172,12 @@ void MainWindow::buildUi()
             QApplication::focusWidget()->clearFocus();
         QTimer::singleShot(250, this, showDialog);
     };
+    connect(saveAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
+        prepareForSecondaryWindow(&MainWindow::saveDocument);
+    });
+    connect(saveAsAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
+        prepareForSecondaryWindow(&MainWindow::saveDocumentAs);
+    });
     connect(settingsAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
         prepareForSecondaryWindow(&MainWindow::showSettingsDialog);
     });
@@ -175,6 +188,8 @@ void MainWindow::buildUi()
         prepareForSecondaryWindow(&MainWindow::insertUnicodeCodePoint);
     });
 #else
+    connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
     connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
     connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
     connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
@@ -186,6 +201,8 @@ void MainWindow::buildUi()
     menuButton->setToolTip(QStringLiteral("Menu"));
     auto *menu = new QMenu(menuButton);
     menu->addAction(openAction);
+    menu->addAction(saveAction);
+    menu->addAction(saveAsAction);
     menu->addSeparator();
     menu->addAction(settingsAction);
     menu->addAction(aboutAction);
@@ -584,13 +601,32 @@ void MainWindow::saveDocument()
 void MainWindow::saveDocumentAs()
 {
     const Config &config = Config::instance();
-    const QString path = QFileDialog::getSaveFileName(
-        this, config.string(QStringLiteral("save_as")),
-        m_currentPath.isEmpty() ? config.string(QStringLiteral("untitled_filename")) : m_currentPath,
-        config.string(QStringLiteral("document_filter")));
-    if (path.isEmpty()) {
+    QFileDialog dialog(this, config.string(QStringLiteral("save_as")),
+                       m_currentPath.isEmpty()
+                           ? config.string(QStringLiteral("untitled_filename")) : m_currentPath,
+                       config.string(QStringLiteral("document_filter")));
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setDefaultSuffix(QStringLiteral("ave"));
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    const QString path = dialog.selectedFiles().value(0);
+    if (path.isEmpty())
+        return;
+#ifdef Q_OS_ANDROID
+    // SAF may encode the same URI differently (for example, spaces as %20).
+    // Normalize the complete URI—not just its basename—before comparing.
+    const auto normalizedPath = [](const QString &value) {
+        const QUrl url = QUrl::fromEncoded(value.toUtf8());
+        if (url.isValid() && !url.scheme().isEmpty())
+            return url.adjusted(QUrl::NormalizePathSegments).toString(QUrl::FullyEncoded);
+        return QDir::cleanPath(value);
+    };
+    if (!m_currentPath.isEmpty() && normalizedPath(path) == normalizedPath(m_currentPath)) {
+        writeToPath(m_currentPath);
         return;
     }
+#endif
     writeToPath(path);
 }
 
