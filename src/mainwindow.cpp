@@ -484,8 +484,18 @@ void MainWindow::insertUnicodeCodePoint()
     bool valid = false;
     const uint scalar = input.toUInt(&valid, 16);
     if (!valid || scalar > 0x10FFFF || (scalar >= 0xD800 && scalar <= 0xDFFF)) {
+#ifdef Q_OS_ANDROID
+        // Let the input dialog and IME finish closing before opening the error
+        // dialog; opening it synchronously can deadlock Qt's Android EGL path.
+        QTimer::singleShot(250, this, [this] {
+            QMessageBox::warning(
+                this, QStringLiteral("Invalid code point"),
+                QStringLiteral("Enter only a hexadecimal Unicode code point (0-9, A-F)."));
+        });
+#else
         QMessageBox::warning(this, QStringLiteral("Invalid code point"),
                              QStringLiteral("Enter a valid Unicode scalar value in hexadecimal."));
+#endif
         return;
     }
     m_editor->insertTextAtCaret(codePointToString(scalar));
