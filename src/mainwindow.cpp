@@ -1028,7 +1028,7 @@ void MainWindow::showAboutDialog()
         QStringLiteral("Ethereum %1").arg(donationAddress), &dialog);
     layout->addWidget(donationAddressLabel);
     auto *copyDonationButton = new QPushButton(QStringLiteral("Copy Ethereum address"), &dialog);
-    copyDonationButton->setFixedWidth(donationSize);
+    copyDonationButton->setFixedWidth(qRound(donationSize * 1.05));
     connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
         QApplication::clipboard()->setText(donationAddress);
         QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
