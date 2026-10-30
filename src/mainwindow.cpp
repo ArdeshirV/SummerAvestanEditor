@@ -962,15 +962,12 @@ void MainWindow::showAboutDialog()
 
     auto *version = new QLabel(QStringLiteral("Version ") + config.appVersion(), &dialog);
 
-    auto *headerText = new QVBoxLayout();
-    headerText->addWidget(name);
-    headerText->addWidget(version);
-
-    auto *header = new QHBoxLayout();
-    header->addWidget(icon);
-    header->addLayout(headerText);
-    header->addStretch(1);
-    layout->addLayout(header);
+    name->setAlignment(Qt::AlignHCenter);
+    version->setAlignment(Qt::AlignHCenter);
+    icon->setAlignment(Qt::AlignHCenter);
+    layout->addWidget(name, 0, Qt::AlignHCenter);
+    layout->addWidget(version, 0, Qt::AlignHCenter);
+    layout->addWidget(icon, 0, Qt::AlignHCenter);
 
     // Render the author handle inside the copyright line as a link to the
     // project's author page.
