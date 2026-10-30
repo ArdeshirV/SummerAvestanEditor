@@ -966,7 +966,7 @@ void MainWindow::showAboutDialog()
 
     auto *version = new QLabel(QStringLiteral("Version ") + config.appVersion(), &dialog);
 
-    name->setAlignment(Qt::AlignHCenter);
+    name->setAlignment(Qt::AlignLeft);
     version->setAlignment(Qt::AlignLeft);
     icon->setAlignment(Qt::AlignHCenter);
     auto *headerText = new QVBoxLayout();
