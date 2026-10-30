@@ -965,9 +965,13 @@ void MainWindow::showAboutDialog()
     name->setAlignment(Qt::AlignHCenter);
     version->setAlignment(Qt::AlignHCenter);
     icon->setAlignment(Qt::AlignHCenter);
-    layout->addWidget(name, 0, Qt::AlignHCenter);
-    layout->addWidget(version, 0, Qt::AlignHCenter);
-    layout->addWidget(icon, 0, Qt::AlignHCenter);
+    auto *headerText = new QVBoxLayout();
+    headerText->addWidget(name);
+    headerText->addWidget(version);
+    auto *header = new QHBoxLayout();
+    header->addWidget(icon, 0, Qt::AlignVCenter | Qt::AlignLeft);
+    header->addLayout(headerText, 1);
+    layout->addLayout(header);
 
     // Render the author handle inside the copyright line as a link to the
     // project's author page.
@@ -990,6 +994,12 @@ void MainWindow::showAboutDialog()
     copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     copyrightLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(copyrightLabel);
+    auto *link = new QLabel(
+        QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
+    link->setOpenExternalLinks(true);
+    link->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    link->setAlignment(Qt::AlignCenter);
+    layout->addWidget(link, 0, Qt::AlignHCenter);
     layout->addSpacing(QFontMetrics(dialog.font()).height());
 
     auto *donationTitle = new QLabel(QStringLiteral("Please Donate!"), &dialog);
@@ -1015,27 +1025,22 @@ void MainWindow::showAboutDialog()
     layout->addWidget(donationAddressLabel);
     auto *copyDonationButton = new QPushButton(QStringLiteral("Copy to clipboard"), &dialog);
     copyDonationButton->setFixedWidth(donationSize);
-    layout->addWidget(copyDonationButton, 0, Qt::AlignHCenter);
     connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
         QApplication::clipboard()->setText(donationAddress);
         QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
     });
-    layout->addSpacing(QFontMetrics(dialog.font()).height());
-
-    auto *link = new QLabel(
-        QStringLiteral("<a href=\"%1\">%1</a>").arg(config.projectUrl()), &dialog);
-    link->setOpenExternalLinks(true);
-    link->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    layout->addWidget(link, 0, Qt::AlignHCenter);
-
-    layout->addSpacing(QFontMetrics(dialog.font()).height());
 
     auto *closeButton = new QPushButton(config.string(QStringLiteral("close")), &dialog);
     closeButton->setMinimumWidth(static_cast<int>(closeButton->sizeHint().width()
                                                   * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
-    layout->addWidget(closeButton, 0, Qt::AlignRight);
     connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
-    layout->setAlignment(closeButton, Qt::AlignHCenter);
+    layout->addSpacing(QFontMetrics(dialog.font()).height());
+    auto *bottomRow = new QHBoxLayout();
+    bottomRow->addStretch(1);
+    bottomRow->addWidget(copyDonationButton);
+    bottomRow->addStretch(1);
+    bottomRow->addWidget(closeButton);
+    layout->addLayout(bottomRow);
 
     dialog.exec();
 }
