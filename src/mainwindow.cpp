@@ -503,11 +503,23 @@ void MainWindow::offerSessionRestore()
     }
 
     const QString lastPath = settings.value(QStringLiteral("last_session_path")).toString();
-    if (lastPath.isEmpty() || !QFile::exists(lastPath)) {
+#ifdef Q_OS_ANDROID
+    // SAF content URIs are not filesystem paths: QFile::exists/readDocumentFile cannot
+    // determine whether they are valid or read their contents. Verify the persisted grant
+    // and load via SafBridge, otherwise don't offer a stale document URI.
+    if (lastPath.isEmpty() || !m_safBridge->persistedUris().contains(lastPath))
         return;
-    }
+#else
+    if (lastPath.isEmpty() || !QFile::exists(lastPath))
+        return;
+#endif
+    QString displayPath = lastPath;
+#ifdef Q_OS_ANDROID
+    const QString displayName = m_safBridge->displayName(lastPath);
+    if (!displayName.isEmpty()) displayPath = displayName;
+#endif
     if (QMessageBox::question(this, QStringLiteral("Restore session"),
-                              QStringLiteral("Reopen the last document?\n%1").arg(lastPath),
+                              QStringLiteral("Reopen the last document?\n%1").arg(displayPath),
                               QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes)
         != QMessageBox::Yes) {
         return;
@@ -515,7 +527,11 @@ void MainWindow::offerSessionRestore()
     QString text;
     TextEncoding encoding = TextEncoding::Utf8;
     QString error;
+#ifdef Q_OS_ANDROID
+    if (!decodeDocument(m_safBridge->readAll(lastPath), text, encoding, error)) {
+#else
     if (!readDocumentFile(lastPath, text, encoding, error)) {
+#endif
         QMessageBox::warning(this, QStringLiteral("Could not restore session"), error);
         return;
     }
