@@ -999,9 +999,9 @@ void MainWindow::showAboutDialog()
     copyrightLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(copyrightLabel);
     auto *link = new QLabel(
-        QStringLiteral("<a href=\"%1\">GitHub</a> · Uses Qt, licensed under "
-                       "<a href=\"https://www.qt.io/licensing/open-source-lgpl-obligations\">LGPLv3</a>")
-            .arg(config.projectUrl()), &dialog);
+        QStringLiteral("Uses Qt, licensed under "
+                       "<a href=\"https://www.qt.io/licensing/open-source-lgpl-obligations\">LGPLv3</a>"),
+        &dialog);
     link->setOpenExternalLinks(true);
     link->setTextInteractionFlags(Qt::TextBrowserInteraction);
     link->setAlignment(Qt::AlignCenter);
