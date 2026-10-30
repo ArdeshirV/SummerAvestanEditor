@@ -956,7 +956,11 @@ void MainWindow::showAboutDialog()
 
     auto *name = new QLabel(config.appName(), &dialog);
     QFont nameFont = name->font();
-    nameFont.setPointSizeF(nameFont.pointSizeF() * config.number(QStringLiteral("about_name_font_multiplier")));
+    double aboutNameMultiplier = config.number(QStringLiteral("about_name_font_multiplier"));
+#ifdef Q_OS_ANDROID
+    aboutNameMultiplier *= 3.0;
+#endif
+    nameFont.setPointSizeF(nameFont.pointSizeF() * aboutNameMultiplier);
     nameFont.setBold(true);
     name->setFont(nameFont);
 
@@ -1023,7 +1027,7 @@ void MainWindow::showAboutDialog()
     auto *donationAddressLabel = new QLabel(
         QStringLiteral("Ethereum %1").arg(donationAddress), &dialog);
     layout->addWidget(donationAddressLabel);
-    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy to clipboard"), &dialog);
+    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy Ethereum address"), &dialog);
     copyDonationButton->setFixedWidth(donationSize);
     connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
         QApplication::clipboard()->setText(donationAddress);
