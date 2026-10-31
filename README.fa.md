@@ -2,11 +2,17 @@
 
 [English](README.md)
 
-ویرایشگر اوستایی یک ویرایشگر متن یونیکد چندسکویی برای خط‌های باستانی و دیگر
-نظام‌های نوشتاری است که با Qt Widgets ساخته شده است. صفحه‌کلید نرم‌افزاری آن با
-اوستایی، پهلوی، پارتی و فارسی باستان آغاز می‌شود و سپس خط‌های تاریخی دیگر،
-خط‌های دیگر یونیکد، نمادهای عمومی و صفحه‌کلید **همهٔ نویسه‌های چاپ‌پذیر یونیکد**
+<table style="border: none; border-collapse: collapse;"  border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td style="border: none; padding: 0;"><img src="https://github.com/ArdeshirV/SummerAvestanEditor/blob/main/img/Icon.png" width="256"></td>
+    <td style="border: none; padding: 0 0 0 8px;">ویرایشگر اوستایی یک ویرایشگر متن یونیکد چندسکویی برای خط‌های باستانی و دیگر
+نظام‌های نوشتاریست. صفحه‌کلید نرم‌افزاری آن با
+اوستایی، پهلوی، پارتی و فارسی باستان آغاز می‌شود و سپس خط‌های تاریخی دیگر، همانند سغدی، خوارزمی، مانوی، هیروگیلیف مصر باستان و
+خط‌های دیگر یونیکد، نمادهای عمومی و صفحه‌کلید همهٔ نویسه‌های چاپ‌پذیر یونیکد
 را ارائه می‌کند.
+</td>
+  </tr>
+</table>
 
 این برنامه روی لینوکس، ویندوز و اندروید اجرا می‌شود. می‌توانید پرونده‌های متنی
 یونیکد را با کدگذاری UTF-8 (با یا بدون BOM)، UTF-16 LE/BE یا UTF-32 LE/BE دارای
@@ -15,9 +21,11 @@ BOM باز کنید، ویرایش کنید و ذخیره کنید. داده‌�
 و رشته‌های قابل‌مشاهده برای کاربر از پوشهٔ `assets/` و از طریق منابع Qt در برنامه
 جاسازی شده‌اند.
 
-![Summer Avestan Editor V 1.0 on Linux Desktop](img/SummerAvestanEditor.png)
+### ویرایش‌گر اوستایی در محیط لینوکس در حال اجرا:
+<div dir="rtl">
+  <img alt="Summer Avestan Editor V 1.0 on Linux Desktop" src="img/SummerAvestanEditor.png">
+</div>
 
-Summer Avestan Editor V 1.0 on Linux Desktop
 
 ## اجرا و ساخت
 
