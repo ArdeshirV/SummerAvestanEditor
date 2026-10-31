@@ -2,11 +2,17 @@
 
 [فارسی](README.fa.md)
 
-Avestan Editor is a cross-platform Unicode text editor for ancient scripts and
-other writing systems, built with Qt Widgets. Its software keyboard starts with
+<table style="border: none; border-collapse: collapse;"  border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td style="border: none; padding: 0;"><img src="https://github.com/ArdeshirV/SummerAvestanEditor/blob/main/img/Icon.png" width="256"></td>
+    <td style="border: none; padding: 0 0 0 8px;">Avestan Editor is a cross-platform Unicode text editor for ancient scripts and
+other writing systems, built with Qt & C++. Its software keyboard starts with
 Avesta, Pahlavi, Parthian, and Ancient Persian, followed by other historic
 scripts, other Unicode scripts, general symbols, and an **All printable
-Unicode** keyboard.
+Unicode** keyboard..</td>
+  </tr>
+</table>
+
 
 The editor runs on Linux, Windows, and Android. You can open, edit, and save
 Unicode text documents in UTF-8 (with or without BOM), UTF-16 LE/BE, or BOM-marked
@@ -14,9 +20,10 @@ UTF-32 LE/BE. Invalid UTF data is rejected instead of silently replaced. All
 settings, language data, readings, Unicode character names, and user-visible
 strings are embedded from the `assets/` directory through Qt resources.
 
+### Summer Avestan Editor V 1.0 on Linux Desktop
+
 ![Summer Avestan Editor V 1.0 on Linux Desktop](img/SummerAvestanEditor.png)
 
-Summer Avestan Editor V 1.0 on Linux Desktop
 
 ## Run and build
 
