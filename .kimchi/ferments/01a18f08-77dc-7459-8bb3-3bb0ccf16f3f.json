@@ -1,0 +1,17 @@
+{
+  "id": "01a18f08-77dc-7459-8bb3-3bb0ccf16f3f",
+  "name": "hi",
+  "description": "hi",
+  "status": "draft",
+  "worktree": {
+    "path": "/home/asohishn/Documents/Projects/C++/Qt/SummerAvestanEditor",
+    "branch": "main",
+    "commit": "8f6c11015b2732f00df675b0adefaf4ab5e4752c"
+  },
+  "scoping": {},
+  "phases": [],
+  "decisions": [],
+  "memories": [],
+  "createdAt": "2026-10-30T22:57:39.292Z",
+  "updatedAt": "2026-10-30T22:57:39.292Z"
+}
