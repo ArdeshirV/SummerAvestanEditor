@@ -8,8 +8,8 @@
     <td style="border: none; padding: 0 0 0 8px;">Avestan Editor is a cross-platform Unicode text editor for ancient scripts and
 other writing systems, built with Qt & C++. Its software keyboard starts with
 Avesta, Pahlavi, Parthian, and Ancient Persian, followed by other historic
-scripts, other Unicode scripts, general symbols, and an **All printable
-Unicode** keyboard..</td>
+scripts, other Unicode scripts, general symbols, and an All printable
+Unicode keyboard..</td>
   </tr>
 </table>
 
