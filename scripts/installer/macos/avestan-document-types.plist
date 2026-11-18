@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Keys to merge into the app's Info.plist. For release builds, put these in your
+     CMake Info.plist template instead (MACOSX_BUNDLE_INFO_PLIST) so signing stays valid. -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>Avestan Editor Document</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array><string>com.ardeshirv.avestan-document</string></array>
+      <key>CFBundleTypeIconFile</key><string>AvestanDocument.icns</string>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>com.ardeshirv.avestan-document</string>
+      <key>UTTypeDescription</key><string>Avestan Editor Document</string>
+      <key>UTTypeConformsTo</key>
+      <array><string>public.data</string><string>public.content</string></array>
+      <key>UTTypeIconFile</key><string>AvestanDocument.icns</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key><array><string>ave</string></array>
+        <key>public.mime-type</key><string>application/x-ave</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

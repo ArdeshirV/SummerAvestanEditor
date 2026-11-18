@@ -1,0 +1,25 @@
+<!-- Paste inside the main <activity> of android/AndroidManifest.xml (the activity needs android:exported="true").
+     Android has no per-file-type icon: file managers choose their own; your app icon shows in "Open with". -->
+<intent-filter>
+    <action android:name="android.intent.action.VIEW"/>
+    <action android:name="android.intent.action.EDIT"/>
+    <category android:name="android.intent.category.DEFAULT"/>
+    <category android:name="android.intent.category.BROWSABLE"/>
+    <data android:scheme="content"/>
+    <data android:scheme="file"/>
+    <data android:mimeType="application/x-ave"/>
+</intent-filter>
+
+<!-- Fallback for apps that send a generic MIME type: match by file name -->
+<intent-filter>
+    <action android:name="android.intent.action.VIEW"/>
+    <category android:name="android.intent.category.DEFAULT"/>
+    <category android:name="android.intent.category.BROWSABLE"/>
+    <data android:scheme="content"/>
+    <data android:scheme="file"/>
+    <data android:mimeType="*/*"/>
+    <data android:host="*"/>
+    <data android:pathPattern=".*\\.ave"/>
+    <data android:pathPattern=".*\\..*\\.ave"/>
+    <data android:pathPattern=".*\\..*\\..*\\.ave"/>
+</intent-filter>
