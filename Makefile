@@ -52,7 +52,6 @@ TERMUX_SPEC     ?=
 ANDROID_SPEC    ?= android-clang
 ANDROID_NDK_ROOT ?= $(if $(ANDROID_NDK_HOME),$(ANDROID_NDK_HOME),$(HOME)/Documents/Apps/Android/ndk)
 ANDROID_PACKAGE_TYPE ?= apk
-ANDROID_PACKAGE_TYPE ?= apk
 ANDROID_API     ?= 37.2
 ANDROID_ABI     ?= arm64-v8a
 ANDROID_ARCH    ?= arm64

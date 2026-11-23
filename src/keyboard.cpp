@@ -25,6 +25,29 @@
 
 namespace {
 
+// Delete the editor selection, or one character in the requested direction when
+// there is no selection.
+void deleteSelectionOrCharacter(Editor *editor, bool forward)
+{
+    QTextCursor cursor = editor->textCursor();
+    if (cursor.hasSelection()) {
+        cursor.removeSelectedText();
+    } else if (forward) {
+        cursor.deleteChar();
+    } else {
+        cursor.deletePreviousChar();
+    }
+    editor->setTextCursor(cursor);
+    editor->setFocus();
+}
+
+// Key cell size shared by the grid layout and the delegate's size hint.
+QSize keySize(const Config &config)
+{
+    return QSize(static_cast<int>(config.number(QStringLiteral("keyboard_key_width"))),
+                 static_cast<int>(config.number(QStringLiteral("keyboard_key_height"))));
+}
+
 class AnchoredLanguageComboBox : public QComboBox {
 public:
     using QComboBox::QComboBox;
@@ -160,7 +183,7 @@ QVariant CharacterModel::data(const QModelIndex &index, int role) const
     if (role == Qt::DisplayRole) {
         return label;
     }
-    const QString hexadecimal = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+    const QString hexadecimal = codePointLabel(codePoint);
     const QString name = Config::instance().unicodeCharacterName(codePoint);
     if (role == Qt::UserRole) {
         return label + QLatin1Char(' ') + hexadecimal + QLatin1Char(' ') + name;
@@ -180,9 +203,7 @@ QSize KeyDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInde
 {
     Q_UNUSED(option)
     Q_UNUSED(index)
-    const Config &config = Config::instance();
-    return QSize(static_cast<int>(config.number(QStringLiteral("keyboard_key_width"))),
-                 static_cast<int>(config.number(QStringLiteral("keyboard_key_height"))));
+    return keySize(Config::instance());
 }
 
 void KeyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -252,9 +273,7 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_view->viewport()->setMouseTracking(true);
     m_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_view->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    m_view->setGridSize(QSize(
-        static_cast<int>(config.number(QStringLiteral("keyboard_key_width"))),
-        static_cast<int>(config.number(QStringLiteral("keyboard_key_height")))));
+    m_view->setGridSize(keySize(config));
     m_view->setSpacing(4);
 
     m_searchRow = new QHBoxLayout();
@@ -269,24 +288,10 @@ KeyboardPanel::KeyboardPanel(Editor *editor, QWidget *parent)
     m_searchRow->addWidget(deleteButton);
     m_searchRow->addWidget(enterButton);
     connect(backspaceButton, &QPushButton::clicked, this, [this]() {
-        QTextCursor cursor = m_editor->textCursor();
-        if (cursor.hasSelection()) {
-            cursor.removeSelectedText();
-        } else if (cursor.position() > 0) {
-            cursor.deletePreviousChar();
-        }
-        m_editor->setTextCursor(cursor);
-        m_editor->setFocus();
+        deleteSelectionOrCharacter(m_editor, false);
     });
     connect(deleteButton, &QPushButton::clicked, this, [this]() {
-        QTextCursor cursor = m_editor->textCursor();
-        if (cursor.hasSelection()) {
-            cursor.removeSelectedText();
-        } else {
-            cursor.deleteChar();
-        }
-        m_editor->setTextCursor(cursor);
-        m_editor->setFocus();
+        deleteSelectionOrCharacter(m_editor, true);
     });
     connect(enterButton, &QPushButton::clicked, this, [this]() {
         m_editor->insertTextAtCaret(QStringLiteral("\n"));

@@ -34,7 +34,6 @@ private slots:
     void saveAsInSafFolder(const QString &folderUri);
 #endif
     void showSettingsDialog();
-    void showAboutDialog();
     void toggleRightToLeft(bool enabled);
     void updateStatus();
     void insertUnicodeCodePoint();
@@ -49,6 +48,10 @@ private:
     void applyEditorFont();
     void setDirty(bool dirty);
     void setCurrentDocument(const QString &path, TextEncoding encoding);
+    void markDocumentSaved(const QString &path);
+    void loadDocument(const QString &path, const QString &text, TextEncoding encoding,
+                      int cursorPosition = -1, bool dirty = false);
+    void persistSessionSettings();
     void clearRecoveryDraft();
     bool writeToPath(const QString &path);
     void requestExit();

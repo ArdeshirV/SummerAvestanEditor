@@ -10,10 +10,12 @@ INCLUDEPATH += $$PWD/src
 SOURCES += \
     $$PWD/src/main.cpp \
     $$PWD/src/mainwindow.cpp \
+    $$PWD/src/dialogs.cpp \
     $$AVESTAN_CORE
 
 HEADERS += \
     $$PWD/src/mainwindow.h \
+    $$PWD/src/dialogs.h \
     $$AVESTAN_HEADERS
 
 RESOURCES += $$PWD/resources.qrc

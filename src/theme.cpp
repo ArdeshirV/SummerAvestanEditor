@@ -70,15 +70,15 @@ QPalette buildPalette(const ThemePalette &palette)
 
 void Theme::apply(QApplication &app, const Config &config, const QString &themeName)
 {
+    app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
+
     const ThemePalette *palette = config.themePalette(themeName);
     if (palette == nullptr || !palette->valid || palette->variant == QLatin1String("system")) {
-        app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
         app.setPalette(app.style()->standardPalette());
         app.setStyleSheet(QString());
         return;
     }
 
-    app.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     app.setPalette(buildPalette(*palette));
     app.setStyleSheet(buildStyleSheet(*palette));
 }

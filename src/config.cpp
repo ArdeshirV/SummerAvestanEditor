@@ -45,6 +45,42 @@ QColor colorFromString(const QString &value)
     return QColor(reordered);
 }
 
+// Copy a JSON object of scalar values into a lookup table, converting each
+// value. Used for the embedded strings, numbers and preference maps.
+template <typename Map, typename Convert>
+void loadObjectMap(const QJsonObject &object, Map &map, Convert convert)
+{
+    for (auto it = object.begin(); it != object.end(); ++it) {
+        map.insert(it.key(), convert(it.value()));
+    }
+}
+
+// Visit every "HEX<TAB>text" row of an embedded table, skipping comments and
+// malformed lines. Both Unicode tables use this format.
+template <typename Store>
+void readCodePointTable(const QString &path, Store store)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    while (!file.atEnd()) {
+        const QByteArray line = file.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+        const qsizetype tab = line.indexOf('\t');
+        if (tab <= 0) {
+            continue;
+        }
+        bool ok = false;
+        const uint codePoint = line.left(tab).toUInt(&ok, 16);
+        if (ok) {
+            store(codePoint, line.mid(tab + 1));
+        }
+    }
+}
+
 } // namespace
 
 const Config &Config::instance()
@@ -72,20 +108,12 @@ void Config::loadApplication(const QJsonObject &root)
     m_authorUrl = app.value(QStringLiteral("author_url")).toString();
     m_copyright = app.value(QStringLiteral("copyright")).toString();
 
-    const QJsonObject strings = root.value(QStringLiteral("strings")).toObject();
-    for (auto it = strings.begin(); it != strings.end(); ++it) {
-        m_strings.insert(it.key(), it.value().toString());
-    }
-
-    const QJsonObject numbers = root.value(QStringLiteral("numbers")).toObject();
-    for (auto it = numbers.begin(); it != numbers.end(); ++it) {
-        m_numbers.insert(it.key(), it.value().toDouble());
-    }
-
-    const QJsonObject preferences = root.value(QStringLiteral("preferences")).toObject();
-    for (auto it = preferences.begin(); it != preferences.end(); ++it) {
-        m_preferences.insert(it.key(), it.value().toString());
-    }
+    loadObjectMap(root.value(QStringLiteral("strings")).toObject(), m_strings,
+                  [](const QJsonValue &value) { return value.toString(); });
+    loadObjectMap(root.value(QStringLiteral("numbers")).toObject(), m_numbers,
+                  [](const QJsonValue &value) { return value.toDouble(); });
+    loadObjectMap(root.value(QStringLiteral("preferences")).toObject(), m_preferences,
+                  [](const QJsonValue &value) { return value.toString(); });
 
     const QJsonArray themeOptions = root.value(QStringLiteral("theme_options")).toArray();
     for (const QJsonValue &value : themeOptions) {
@@ -274,26 +302,10 @@ void Config::loadUnicodePronunciations() const
         return;
     }
     m_unicodePronunciationsLoaded = true;
-    QFile file(QStringLiteral(":/assets/unicode_pronunciations.tsv"));
-    if (!file.open(QIODevice::ReadOnly)) {
-        return;
-    }
-    while (!file.atEnd()) {
-        const QByteArray line = file.readLine().trimmed();
-        if (line.isEmpty() || line.startsWith('#')) {
-            continue;
-        }
-        const qsizetype tab = line.indexOf('\t');
-        if (tab <= 0) {
-            continue;
-        }
-        bool ok = false;
-        const uint codePoint = line.left(tab).toUInt(&ok, 16);
-        if (ok) {
-            m_unicodePronunciations.insert(codePoint,
-                QString::fromUtf8(line.constData() + tab + 1, line.size() - tab - 1));
-        }
-    }
+    readCodePointTable(QStringLiteral(":/assets/unicode_pronunciations.tsv"),
+                       [this](uint codePoint, const QByteArray &value) {
+                           m_unicodePronunciations.insert(codePoint, QString::fromUtf8(value));
+                       });
 }
 
 void Config::loadUnicodeNames() const
@@ -302,28 +314,11 @@ void Config::loadUnicodeNames() const
         return;
     }
     m_unicodeNamesLoaded = true;
-    QFile file(QStringLiteral(":/assets/unicode_names.tsv"));
-    if (!file.open(QIODevice::ReadOnly)) {
-        return;
-    }
     m_unicodeNames.reserve(150000);
-    while (!file.atEnd()) {
-        QByteArray line = file.readLine().trimmed();
-        if (line.isEmpty() || line.startsWith('#')) {
-            continue;
-        }
-        const qsizetype tab = line.indexOf('\t');
-        if (tab <= 0) {
-            continue;
-        }
-        bool ok = false;
-        const uint codePoint = line.left(tab).toUInt(&ok, 16);
-        if (ok) {
-            m_unicodeNames.insert(codePoint,
-                                  QString::fromLatin1(line.constData() + tab + 1,
-                                                      line.size() - tab - 1));
-        }
-    }
+    readCodePointTable(QStringLiteral(":/assets/unicode_names.tsv"),
+                       [this](uint codePoint, const QByteArray &value) {
+                           m_unicodeNames.insert(codePoint, QString::fromLatin1(value));
+                       });
 }
 
 QString Config::unicodeCharacterName(uint codePoint) const

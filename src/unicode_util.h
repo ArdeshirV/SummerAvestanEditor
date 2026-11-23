@@ -11,6 +11,19 @@ inline QString codePointToString(uint codePoint)
     return QString::fromUcs4(&value, 1);
 }
 
+// True for a Unicode scalar value: inside the valid code point range and
+// outside the surrogate block that UTF-16 reserves for surrogate pairs.
+inline bool isValidCodePoint(uint codePoint)
+{
+    return codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
+}
+
+// The "U+XXXX" label used by the status bar and the keyboard tooltips.
+inline QString codePointLabel(uint codePoint)
+{
+    return QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+}
+
 // Count Unicode scalar values, treating each surrogate pair as one code point.
 inline int codePointCount(const QString &text)
 {

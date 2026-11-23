@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "config.h"
+#include "dialogs.h"
 #include "editor.h"
 #include "keyboard.h"
 #include "theme.h"
@@ -30,7 +31,6 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QInputMethod>
-#include <QInputMethod>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -48,7 +48,6 @@
 #include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
-#include <QTimer>
 #include <QToolTip>
 #include <QVBoxLayout>
 
@@ -69,22 +68,35 @@ QString defaultEditorFontSize()
     return QStringLiteral("10");
 }
 
-// A dialog that can also be dismissed with Escape, Return or the keypad Enter.
-class DismissibleDialog : public QDialog {
-public:
-    using QDialog::QDialog;
+QString storedThemeName()
+{
+    const Config &config = Config::instance();
+    return applicationSettings()
+        .value(preference(QStringLiteral("theme")), config.string(QStringLiteral("theme_dark")))
+        .toString();
+}
 
-protected:
-    void keyPressEvent(QKeyEvent *event) override
-    {
-        if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Return
-            || event->key() == Qt::Key_Enter) {
-            accept();
-            return;
-        }
-        QDialog::keyPressEvent(event);
+QString storedFontSize()
+{
+    return applicationSettings()
+        .value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
+        .toString();
+}
+
+#ifdef Q_OS_ANDROID
+// Dismiss the focused widget and any active IME before a new native surface or
+// dialog is created. Qt's Android EGL backend can abort if a surface is queried
+// while the IME callback holds its deadlock protector.
+void dismissTransientInput()
+{
+    if (QApplication::focusWidget()) {
+        QApplication::focusWidget()->clearFocus();
     }
-};
+    if (QGuiApplication::inputMethod()) {
+        QGuiApplication::inputMethod()->hide();
+    }
+}
+#endif
 
 } // namespace
 
@@ -117,9 +129,7 @@ MainWindow::MainWindow(QWidget *parent)
                                   QStringLiteral("Android could not write the selected document."));
             return;
         }
-        setCurrentDocument(uri, m_encoding);
-        setDirty(false);
-        clearRecoveryDraft();
+        markDocumentSaved(uri);
     });
     connect(m_safBridge, &SafBridge::documentsPicked, this, [this](const QStringList &uris) {
         if (uris.isEmpty()) return;
@@ -131,9 +141,7 @@ MainWindow::MainWindow(QWidget *parent)
                                       QStringLiteral("Could not overwrite the selected document."));
                 return;
             }
-            setCurrentDocument(uri, m_encoding);
-            setDirty(false);
-            clearRecoveryDraft();
+            markDocumentSaved(uri);
             return;
         }
         QString text, error;
@@ -142,18 +150,13 @@ MainWindow::MainWindow(QWidget *parent)
             QMessageBox::critical(this, QStringLiteral("Open"), error);
             return;
         }
-        m_loading = true;
-        m_editor->setPlainText(text);
-        m_loading = false;
-        setCurrentDocument(uris.first(), encoding);
-        setDirty(false);
+        loadDocument(uris.first(), text, encoding);
         clearRecoveryDraft();
         m_editor->setFocus();
     });
     connect(m_safBridge, &SafBridge::saveFolderPicked, this, [this](const QString &folderUri) {
         // Let the SAF activity and Android IME fully dismiss before creating a Qt dialog.
-        if (QApplication::focusWidget()) QApplication::focusWidget()->clearFocus();
-        if (QGuiApplication::inputMethod()) QGuiApplication::inputMethod()->hide();
+        dismissTransientInput();
         QTimer::singleShot(500, this, [this, folderUri] { saveAsInSafFolder(folderUri); });
     });
     connect(m_safBridge, &SafBridge::cancelled, this, [] {});
@@ -203,28 +206,27 @@ void MainWindow::buildUi()
     topBarFont.setPointSizeF(topBarFont.pointSizeF() * 0.8);
     topBar->setFont(topBarFont);
 
-    auto *openAction = new QAction(config.string(QStringLiteral("open")), this);
-    openAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_O));
-    auto *saveAction = new QAction(config.string(QStringLiteral("save")), this);
-    saveAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_S));
-    auto *saveAsAction = new QAction(config.string(QStringLiteral("save_as")), this);
-    saveAsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
-    auto *insertCodePointAction = new QAction(config.string(QStringLiteral("insert_unicode")), this);
-    insertCodePointAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
-    auto *settingsAction = new QAction(config.string(QStringLiteral("settings")), this);
-    settingsAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
-    auto *aboutAction = new QAction(config.string(QStringLiteral("about")), this);
-    aboutAction->setShortcut(QKeySequence(Qt::Key_F1));
-    auto *exitAction = new QAction(config.string(QStringLiteral("exit")), this);
-    exitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
+    const auto createAction = [this, &config](const QString &labelKey,
+                                             const QKeySequence &shortcut) {
+        auto *action = new QAction(config.string(labelKey), this);
+        action->setShortcut(shortcut);
+        return action;
+    };
+    auto *openAction = createAction(QStringLiteral("open"), QKeySequence(Qt::CTRL | Qt::Key_O));
+    auto *saveAction = createAction(QStringLiteral("save"), QKeySequence(Qt::CTRL | Qt::Key_S));
+    auto *saveAsAction =
+        createAction(QStringLiteral("save_as"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    auto *insertCodePointAction = createAction(QStringLiteral("insert_unicode"),
+                                               QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U));
+    auto *settingsAction =
+        createAction(QStringLiteral("settings"), QKeySequence(Qt::CTRL | Qt::Key_G));
+    auto *aboutAction = createAction(QStringLiteral("about"), QKeySequence(Qt::Key_F1));
+    auto *exitAction = createAction(QStringLiteral("exit"), QKeySequence(Qt::CTRL | Qt::Key_X));
 
-    addAction(openAction);
-    addAction(saveAction);
-    addAction(saveAsAction);
-    addAction(insertCodePointAction);
-    addAction(settingsAction);
-    addAction(aboutAction);
-    addAction(exitAction);
+    for (QAction *action : {openAction, saveAction, saveAsAction, insertCodePointAction,
+                            settingsAction, aboutAction, exitAction}) {
+        addAction(action);
+    }
 
     connect(openAction, &QAction::triggered, this, &MainWindow::openDocument);
 #ifdef Q_OS_ANDROID
@@ -232,13 +234,9 @@ void MainWindow::buildUi()
     // Opening a modal dialog directly from QAction::triggered can overlap popup
     // surface teardown with Qt's Android EGL/input-context callbacks.
     const auto prepareForSecondaryWindow = [this](auto showDialog) {
-        // Dismiss Android's IME before creating another native surface. Qt's
-        // Android EGL backend can abort if a surface is queried while the IME
-        // callback holds its runOnQtThread deadlock protector.
-        if (QGuiApplication::inputMethod())
-            QGuiApplication::inputMethod()->hide();
-        if (QApplication::focusWidget())
-            QApplication::focusWidget()->clearFocus();
+        // Dismiss Android's IME before creating another native surface; see
+        // dismissTransientInput() for why this must happen first.
+        dismissTransientInput();
         QTimer::singleShot(250, this, showDialog);
     };
     connect(saveAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
@@ -250,8 +248,8 @@ void MainWindow::buildUi()
     connect(settingsAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
         prepareForSecondaryWindow(&MainWindow::showSettingsDialog);
     });
-    connect(aboutAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
-        prepareForSecondaryWindow(&MainWindow::showAboutDialog);
+    connect(aboutAction, &QAction::triggered, this, [prepareForSecondaryWindow, this] {
+        prepareForSecondaryWindow([this] { showAboutDialog(this); });
     });
     connect(insertCodePointAction, &QAction::triggered, this, [prepareForSecondaryWindow] {
         prepareForSecondaryWindow(&MainWindow::insertUnicodeCodePoint);
@@ -260,7 +258,7 @@ void MainWindow::buildUi()
     connect(saveAction, &QAction::triggered, this, &MainWindow::saveDocument);
     connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveDocumentAs);
     connect(settingsAction, &QAction::triggered, this, &MainWindow::showSettingsDialog);
-    connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+    connect(aboutAction, &QAction::triggered, this, [this] { showAboutDialog(this); });
     connect(insertCodePointAction, &QAction::triggered, this, &MainWindow::insertUnicodeCodePoint);
 #endif
     connect(exitAction, &QAction::triggered, this, &MainWindow::requestExit);
@@ -393,20 +391,13 @@ void MainWindow::applyPreferences()
 
 void MainWindow::applyTheme()
 {
-    const Config &config = Config::instance();
-    QSettings settings = applicationSettings();
-    const QString themeName =
-        settings.value(preference(QStringLiteral("theme")), config.string(QStringLiteral("theme_dark")))
-            .toString();
-    Theme::apply(*qApp, config, themeName);
+    Theme::apply(*qApp, Config::instance(), storedThemeName());
 }
 
 void MainWindow::applyEditorFont()
 {
-    QSettings settings = applicationSettings();
     bool sizeIsValid = false;
-    double pointSize = settings.value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
-                           .toString().toDouble(&sizeIsValid);
+    double pointSize = storedFontSize().toDouble(&sizeIsValid);
     if (!sizeIsValid || pointSize <= 0) {
         pointSize = defaultEditorFontSize().toDouble();
     }
@@ -420,6 +411,25 @@ void MainWindow::applyEditorFont()
     m_editor->setFont(font);
 }
 
+// Install `text` as the current document without marking the buffer dirty,
+// restoring the stored caret position when one is given. Recovery drafts are
+// left to the callers that own them.
+void MainWindow::loadDocument(const QString &path, const QString &text, TextEncoding encoding,
+                              int cursorPosition, bool dirty)
+{
+    m_loading = true;
+    m_editor->setPlainText(text);
+    m_loading = false;
+    setCurrentDocument(path, encoding);
+    if (cursorPosition >= 0) {
+        QTextCursor cursor = m_editor->textCursor();
+        cursor.setPosition(qBound(0, cursorPosition,
+                                  m_editor->document()->characterCount() - 1));
+        m_editor->setTextCursor(cursor);
+    }
+    setDirty(dirty);
+}
+
 void MainWindow::setCurrentDocument(const QString &path, TextEncoding encoding)
 {
     m_currentPath = path;
@@ -428,6 +438,15 @@ void MainWindow::setCurrentDocument(const QString &path, TextEncoding encoding)
         applicationSettings().setValue(QStringLiteral("last_session_path"), path);
     }
     updateStatus();
+}
+
+// Adopt `path` as the current document and drop the recovery draft once the
+// buffer has reached disk.
+void MainWindow::markDocumentSaved(const QString &path)
+{
+    setCurrentDocument(path, m_encoding);
+    setDirty(false);
+    clearRecoveryDraft();
 }
 
 void MainWindow::saveRecoveryDraft()
@@ -484,16 +503,9 @@ void MainWindow::offerSessionRestore()
                     && storedEncoding <= static_cast<int>(TextEncoding::Utf32BE)) {
                     recoveryEncoding = static_cast<TextEncoding>(storedEncoding);
                 }
-                m_loading = true;
-                m_editor->setPlainText(text);
-                m_loading = false;
-                setCurrentDocument(settings.value(QStringLiteral("recovery_path")).toString(),
-                                   recoveryEncoding);
-                QTextCursor cursor = m_editor->textCursor();
-                cursor.setPosition(qBound(0, settings.value(QStringLiteral("recovery_cursor")).toInt(),
-                                          m_editor->document()->characterCount() - 1));
-                m_editor->setTextCursor(cursor);
-                setDirty(true);
+                loadDocument(settings.value(QStringLiteral("recovery_path")).toString(), text,
+                             recoveryEncoding,
+                             settings.value(QStringLiteral("recovery_cursor")).toInt(), true);
                 return;
             }
             QMessageBox::warning(this, QStringLiteral("Recovery failed"), error);
@@ -535,15 +547,8 @@ void MainWindow::offerSessionRestore()
         QMessageBox::warning(this, QStringLiteral("Could not restore session"), error);
         return;
     }
-    m_loading = true;
-    m_editor->setPlainText(text);
-    m_loading = false;
-    setCurrentDocument(lastPath, encoding);
-    QTextCursor cursor = m_editor->textCursor();
-    cursor.setPosition(qBound(0, settings.value(QStringLiteral("last_session_cursor")).toInt(),
-                              m_editor->document()->characterCount() - 1));
-    m_editor->setTextCursor(cursor);
-    setDirty(false);
+    loadDocument(lastPath, text, encoding,
+                 settings.value(QStringLiteral("last_session_cursor")).toInt());
 }
 
 void MainWindow::toggleKeyboard()
@@ -568,14 +573,14 @@ void MainWindow::insertUnicodeCodePoint()
     if (!accepted || input.isEmpty()) {
         return;
     }
-    if (input.startsWith(QStringLiteral("U+"), Qt::CaseInsensitive)) {
-        input.remove(0, 2);
-    } else if (input.startsWith(QStringLiteral("0x"), Qt::CaseInsensitive)) {
+    // Both accepted prefixes are two characters long.
+    if (input.startsWith(QStringLiteral("U+"), Qt::CaseInsensitive)
+        || input.startsWith(QStringLiteral("0x"), Qt::CaseInsensitive)) {
         input.remove(0, 2);
     }
     bool valid = false;
     const uint scalar = input.toUInt(&valid, 16);
-    if (!valid || scalar > 0x10FFFF || (scalar >= 0xD800 && scalar <= 0xDFFF)) {
+    if (!valid || !isValidCodePoint(scalar)) {
 #ifdef Q_OS_ANDROID
         // Let the input dialog and IME finish closing before opening the error
         // dialog; opening it synchronously can deadlock Qt's Android EGL path.
@@ -630,7 +635,7 @@ void MainWindow::updateStatus()
         const QVector<uint> scalars = cursor.selectedText().toUcs4();
         if (!scalars.isEmpty()) {
             const uint codePoint = scalars.constLast();
-            const QString code = QStringLiteral("U+") + QString::number(codePoint, 16).toUpper();
+            const QString code = codePointLabel(codePoint);
             const QString characterName = config.unicodeCharacterName(codePoint);
             currentCharacterInfo = QStringLiteral("<a href=\"%1\">%1</a> — %2")
                 .arg(code.toHtmlEscaped(),
@@ -674,11 +679,7 @@ void MainWindow::openDocument()
         return;
     }
 
-    m_loading = true;
-    m_editor->setPlainText(text);
-    m_loading = false;
-    setCurrentDocument(path, encoding);
-    setDirty(false);
+    loadDocument(path, text, encoding);
     clearRecoveryDraft();
     m_editor->setFocus();
 }
@@ -795,9 +796,7 @@ bool MainWindow::writeToPath(const QString &path)
                                   QStringLiteral("Android could not write the selected document."));
             return false;
         }
-        setCurrentDocument(path, m_encoding);
-        setDirty(false);
-        clearRecoveryDraft();
+        markDocumentSaved(path);
         return true;
     }
 #endif
@@ -807,9 +806,7 @@ bool MainWindow::writeToPath(const QString &path)
         QMessageBox::critical(this, config.string(QStringLiteral("save")), error);
         return false;
     }
-    setCurrentDocument(path, m_encoding);
-    setDirty(false);
-    clearRecoveryDraft();
+    markDocumentSaved(path);
     return true;
 }
 
@@ -838,9 +835,7 @@ void MainWindow::showSettingsDialog()
     themeRow->addWidget(new QLabel(config.string(QStringLiteral("theme_settings_label")), &dialog));
     auto *themeSelect = new QComboBox(&dialog);
     themeSelect->addItems(config.themeOptions());
-    themeSelect->setCurrentText(
-        settings.value(preference(QStringLiteral("theme")), config.string(QStringLiteral("theme_dark")))
-            .toString());
+    themeSelect->setCurrentText(storedThemeName());
     themeRow->addWidget(themeSelect, 1);
     layout->addLayout(themeRow);
 
@@ -849,9 +844,7 @@ void MainWindow::showSettingsDialog()
     sizeRow->addWidget(new QLabel(config.string(QStringLiteral("font_settings_label")), &dialog));
     auto *sizeSelect = new QComboBox(&dialog);
     sizeSelect->addItems(config.fontSizeOptions());
-    sizeSelect->setCurrentText(
-        settings.value(preference(QStringLiteral("font_size")), defaultEditorFontSize())
-            .toString());
+    sizeSelect->setCurrentText(storedFontSize());
     sizeRow->addWidget(sizeSelect, 1);
     layout->addLayout(sizeRow);
 
@@ -877,8 +870,7 @@ void MainWindow::showSettingsDialog()
     layout->addSpacing(lineHeight);
 
     auto *closeButton = new QPushButton(config.string(QStringLiteral("settings_close")), &dialog);
-    closeButton->setMinimumWidth(static_cast<int>(closeButton->sizeHint().width()
-                                                  * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
+    applyCloseButtonWidth(closeButton, config);
     layout->addWidget(closeButton, 0, Qt::AlignRight);
 
     connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
@@ -941,116 +933,6 @@ void MainWindow::showSettingsDialog()
     dialog.exec();
 }
 
-void MainWindow::showAboutDialog()
-{
-    const Config &config = Config::instance();
-
-    DismissibleDialog dialog(this);
-    dialog.setWindowTitle(config.string(QStringLiteral("about_dialog_title")));
-    auto *layout = new QVBoxLayout(&dialog);
-
-    auto *icon = new QLabel(&dialog);
-    const int iconSize = static_cast<int>(config.number(QStringLiteral("about_icon_size")));
-    icon->setPixmap(QPixmap(QStringLiteral(":/img/Icon.png"))
-                        .scaled(iconSize, iconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-
-    auto *name = new QLabel(config.appName(), &dialog);
-    QFont nameFont = name->font();
-    double aboutNameMultiplier = config.number(QStringLiteral("about_name_font_multiplier"));
-#ifdef Q_OS_ANDROID
-    aboutNameMultiplier *= 3.0;
-#endif
-    nameFont.setPointSizeF(nameFont.pointSizeF() * aboutNameMultiplier);
-    nameFont.setBold(true);
-    name->setFont(nameFont);
-
-    auto *version = new QLabel(QStringLiteral("Version ") + config.appVersion(), &dialog);
-
-    name->setAlignment(Qt::AlignLeft);
-    version->setAlignment(Qt::AlignLeft);
-    icon->setAlignment(Qt::AlignHCenter);
-    auto *headerText = new QVBoxLayout();
-    headerText->addWidget(name);
-    headerText->addWidget(version);
-    auto *header = new QHBoxLayout();
-    header->addWidget(icon, 0, Qt::AlignVCenter | Qt::AlignLeft);
-    header->addLayout(headerText, 1);
-    layout->addLayout(header);
-
-    // Render the author handle inside the copyright line as a link to the
-    // project's author page.
-    QString copyright = config.copyright().toHtmlEscaped();
-    QString handle = config.authorHandle();
-    if (handle.startsWith(QLatin1Char('@'))) {
-        handle.remove(0, 1);
-    }
-    if (!handle.isEmpty()) {
-        const int handleIndex = copyright.indexOf(handle.toHtmlEscaped());
-        if (handleIndex >= 0) {
-            const QString anchor = QStringLiteral("<a href=\"%1\">%2</a>")
-                                       .arg(config.authorUrl().toHtmlEscaped(),
-                                            handle.toHtmlEscaped());
-            copyright.replace(handleIndex, handle.toHtmlEscaped().size(), anchor);
-        }
-    }
-    auto *copyrightLabel = new QLabel(copyright, &dialog);
-    copyrightLabel->setOpenExternalLinks(true);
-    copyrightLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    copyrightLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(copyrightLabel);
-    auto *link = new QLabel(
-        QStringLiteral("Uses Qt, licensed under "
-                       "<a href=\"https://www.qt.io/licensing/open-source-lgpl-obligations\">LGPLv3</a>"),
-        &dialog);
-    link->setOpenExternalLinks(true);
-    link->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    link->setAlignment(Qt::AlignCenter);
-    layout->addWidget(link, 0, Qt::AlignHCenter);
-    layout->addSpacing(QFontMetrics(dialog.font()).height());
-
-    auto *donationTitle = new QLabel(QStringLiteral("Please Donate!"), &dialog);
-    QFont donationTitleFont = donationTitle->font();
-    donationTitleFont.setBold(true);
-    donationTitle->setFont(donationTitleFont);
-    layout->addWidget(donationTitle);
-    auto *donationDescription = new QLabel(
-        QStringLiteral("We truly appreciate and thank you for any donation you can give to our project."),
-        &dialog);
-    donationDescription->setWordWrap(true);
-    layout->addWidget(donationDescription);
-    auto *donationImage = new QLabel(&dialog);
-    const int donationSize = static_cast<int>(config.number(QStringLiteral("donation_image_size")));
-    donationImage->setPixmap(QPixmap(QStringLiteral(":/assets/ethereum-donation.png"))
-                                 .scaled(donationSize, donationSize, Qt::KeepAspectRatio,
-                                         Qt::SmoothTransformation));
-    donationImage->setAlignment(Qt::AlignCenter);
-    layout->addWidget(donationImage);
-    const QString donationAddress = QStringLiteral("0x6E6465394D14975956cd1BD37ab4E35F2C60300E");
-    auto *donationAddressLabel = new QLabel(
-        QStringLiteral("Ethereum %1").arg(donationAddress), &dialog);
-    layout->addWidget(donationAddressLabel);
-    auto *copyDonationButton = new QPushButton(QStringLiteral("Copy Ethereum address"), &dialog);
-    copyDonationButton->setFixedWidth(qRound(donationSize * 1.05));
-    connect(copyDonationButton, &QPushButton::clicked, this, [&dialog, donationAddress]() {
-        QApplication::clipboard()->setText(donationAddress);
-        QToolTip::showText(QCursor::pos(), QStringLiteral("Address copied"), &dialog);
-    });
-
-    auto *closeButton = new QPushButton(config.string(QStringLiteral("close")), &dialog);
-    closeButton->setMinimumWidth(static_cast<int>(closeButton->sizeHint().width()
-                                                  * config.number(QStringLiteral("settings_close_button_width_multiplier"))));
-    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
-    layout->addSpacing(QFontMetrics(dialog.font()).height());
-    auto *bottomRow = new QHBoxLayout();
-    bottomRow->addStretch(1);
-    bottomRow->addWidget(copyDonationButton);
-    bottomRow->addStretch(1);
-    bottomRow->addWidget(closeButton);
-    layout->addLayout(bottomRow);
-
-    dialog.exec();
-}
-
 void MainWindow::requestExit()
 {
     close();
@@ -1072,19 +954,25 @@ void MainWindow::showEvent(QShowEvent *event)
     m_splitter->setSizes({editorSize, total - editorSize});
 }
 
+void MainWindow::persistSessionSettings()
+{
+    QSettings settings = applicationSettings();
+    const QList<int> sizes = m_splitter->sizes();
+    settings.setValue(preference(QStringLiteral("split_offset")),
+                      static_cast<double>(sizes.value(0))
+                          / qMax(1, sizes.value(0) + sizes.value(1)));
+    settings.setValue(QStringLiteral("main_window_size"), size());
+    if (!m_currentPath.isEmpty()) {
+        settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
+        settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
+    }
+    clearRecoveryDraft();
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     if (!m_dirty) {
-        QSettings settings = applicationSettings();
-        const double fraction = static_cast<double>(m_splitter->sizes().value(0))
-            / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
-        settings.setValue(preference(QStringLiteral("split_offset")), fraction);
-        settings.setValue(QStringLiteral("main_window_size"), size());
-        if (!m_currentPath.isEmpty()) {
-            settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
-            settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
-        }
-        clearRecoveryDraft();
+        persistSessionSettings();
         event->accept();
         return;
     }
@@ -1120,15 +1008,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
         return;
     }
 
-    QSettings settings = applicationSettings();
-    const double fraction = static_cast<double>(m_splitter->sizes().value(0))
-        / qMax(1, m_splitter->sizes().value(0) + m_splitter->sizes().value(1));
-    settings.setValue(preference(QStringLiteral("split_offset")), fraction);
-    settings.setValue(QStringLiteral("main_window_size"), size());
-    if (!m_currentPath.isEmpty()) {
-        settings.setValue(QStringLiteral("last_session_path"), m_currentPath);
-        settings.setValue(QStringLiteral("last_session_cursor"), m_editor->textCursor().position());
-    }
-    clearRecoveryDraft();
+    persistSessionSettings();
     event->accept();
 }
