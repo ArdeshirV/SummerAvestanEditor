@@ -1,0 +1,8 @@
+#ifndef AVESTAN_APP_ICON_RC
+#define AVESTAN_APP_ICON_RC
+
+#include <windows.h>
+LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
+1 ICON "img/Icon.ico"
+
+#endif

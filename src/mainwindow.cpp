@@ -391,7 +391,8 @@ void MainWindow::applyPreferences()
 
 void MainWindow::applyTheme()
 {
-    Theme::apply(*qApp, Config::instance(), storedThemeName());
+    const Config &config = Config::instance();
+    Theme::apply(*qApp, config, storedThemeName());
 }
 
 void MainWindow::applyEditorFont()
@@ -884,35 +885,34 @@ void MainWindow::showSettingsDialog()
         local.setValue(preference(QStringLiteral("font_size")), value);
         applyEditorFont();
     });
-    connect(fontFileButton, &QPushButton::clicked, this, [this]() {
-        const Config &local = Config::instance();
+    connect(fontFileButton, &QPushButton::clicked, this, [this, &config]() {
         const QString path = QFileDialog::getOpenFileName(
-            this, local.string(QStringLiteral("font")), QString(),
-            local.string(QStringLiteral("font_filter")));
+            this, config.string(QStringLiteral("font")), QString(),
+            config.string(QStringLiteral("font_filter")));
         if (path.isEmpty()) {
             return;
         }
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly)) {
-            QMessageBox::critical(this, local.string(QStringLiteral("font")), file.errorString());
+            QMessageBox::critical(this, config.string(QStringLiteral("font")), file.errorString());
             return;
         }
         const QByteArray data = file.readAll();
-        const qint64 limit = static_cast<qint64>(local.number(QStringLiteral("default_font_file_limit_mib"))
-                                                 * local.number(QStringLiteral("bytes_per_mib")));
+        const qint64 limit = static_cast<qint64>(config.number(QStringLiteral("default_font_file_limit_mib"))
+                                                 * config.number(QStringLiteral("bytes_per_mib")));
         if (data.size() > limit) {
-            const QByteArray format = local.string(QStringLiteral("font_file_too_large")).toUtf8();
+            const QByteArray format = config.string(QStringLiteral("font_file_too_large")).toUtf8();
             QMessageBox::critical(
-                this, local.string(QStringLiteral("font")),
+                this, config.string(QStringLiteral("font")),
                 QString::asprintf(format.constData(),
-                                  static_cast<int>(local.number(QStringLiteral("default_font_file_limit_mib")))));
+                                  static_cast<int>(config.number(QStringLiteral("default_font_file_limit_mib")))));
             return;
         }
         const int fontId = QFontDatabase::addApplicationFontFromData(data);
         if (fontId < 0) {
-            QString message = local.string(QStringLiteral("font_file_invalid"));
+            QString message = config.string(QStringLiteral("font_file_invalid"));
             message.replace(QStringLiteral("%w"), QString());
-            QMessageBox::critical(this, local.string(QStringLiteral("font")), message);
+            QMessageBox::critical(this, config.string(QStringLiteral("font")), message);
             return;
         }
         const QStringList families = QFontDatabase::applicationFontFamilies(fontId);

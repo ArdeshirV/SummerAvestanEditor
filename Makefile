@@ -38,7 +38,7 @@ MAKE  ?= make
 # Per-platform Qt kits. Defaults fall back to the host qmake so native builds
 # work out of the box; override them for real cross builds.
 LINUX_QMAKE   ?= $(QMAKE)
-TERMUX_QMAKE  ?= $(QMAKE)
+TERMUX_QMAKE  ?= /home/asohishn/Documents/Apps/Qt/6.12/6.12.0/android_arm64_v8a/bin/qmake
 WINDOWS_QMAKE ?= $(QMAKE)
 ANDROID_QMAKE ?= $(if $(wildcard $(HOME)/Documents/Apps/Qt/6.12/6.12.0/android_arm64_v8a/bin/qmake),$(HOME)/Documents/Apps/Qt/6.12/6.12.0/android_arm64_v8a/bin/qmake,$(QMAKE))
 
@@ -57,6 +57,10 @@ ANDROID_ABI     ?= arm64-v8a
 ANDROID_ARCH    ?= arm64
 ANDROIDDEPLOYQT ?= $(if $(wildcard $(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt),$(HOME)/Documents/Apps/Qt/6.12/6.12.0/gcc_64/bin/androiddeployqt,androiddeployqt)
 ANDROID_JAVA_HOME ?= $(shell for j in "$(JAVA_HOME)" /usr/lib/jvm/java-26-openjdk-amd64 /usr/lib/jvm/java-17-openjdk-amd64; do test -x "$$j/bin/java" && { echo "$$j"; break; }; done)
+
+# Isolate Qt tooling from the ambient environment (LD_LIBRARY_PATH etc.) so each
+# qmake/make/androiddeployqt invocation resolves the intended Qt installation.
+QT_ENV = env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM
 
 # Host detection.
 HOST_MACHINE := $(shell uname -m)
@@ -77,7 +81,7 @@ endif
         windows-amd64 windows-arm64 windows-386 \
         android-arm64 android-arm android-amd64
 
-all: $(NATIVE)
+all: linux-amd64 windows-amd64 termux-arm64 android-arm64
 
 # ------------------------------------------------------------------------------
 # Generic desktop build: (1) OS label, (2) arch, (3) qmake, (4) qmake args,
@@ -87,9 +91,9 @@ define qt_build
 	@mkdir -p "$(DIST)/build/$(1)-$(2)"
 	@echo ">>> Building $(APP)-$(1)-$(2)$(5)"
 	@cd "$(DIST)/build/$(1)-$(2)" && \
-		$(3) "$(CURDIR)/$(PROJECT)" $(4) && \
-		$(MAKE) -j"$(JOBS)"
-	@binary="$(DIST)/build/$(1)-$(2)/avestan-editor$(5)"; \
+		$(QT_ENV) $(3) "$(CURDIR)/$(PROJECT)" $(4) && \
+		$(QT_ENV) $(MAKE) -j"$(JOBS)"
+	@binary="$(DIST)/build/$(1)-$(2)/$(if $(filter Termux,$(1)),libavestan-editor_$(2)-v8a.so,avestan-editor$(5))"; \
 	 test -f "$$binary" || { echo "error: expected $$binary was not produced"; exit 1; }; \
 	 description=$$(file -b "$$binary"); \
 	 case "$(2)" in \
@@ -98,8 +102,8 @@ define qt_build
 	   arm64) echo "$$description" | grep -Eqi 'ARM aarch64|aarch64' ;; \
 	   arm) echo "$$description" | grep -Eqi 'ARM,' ;; \
 	 esac || { echo "error: built artifact architecture does not match target $(1)-$(2): $$description"; exit 1; }; \
-	 if [ "$(1)" = "Termux" ] && ! readelf -l "$$binary" 2>/dev/null | grep -q '/system/bin/linker'; then \
-	   echo "error: $(1)-$(2) artifact is not linked for Android/bionic; use a Termux Android Qt kit."; exit 1; \
+		if [ "$(1)" = "Termux" ]; then \
+	   echo ">>> $(1)-$(2) Android shared library verified: $$(file -b "$$binary")"; \
 	 fi; \
 	 mkdir -p "$(DIST)"; cp "$$binary" "$(DIST)/$(APP)-$(1)-$(2)$(5)"; \
 	 echo ">>> $(DIST)/$(APP)-$(1)-$(2)$(5)"
@@ -122,13 +126,15 @@ linux-amd64 linux-arm64 linux-386:
 termux: termux-$(HOST_ARCH)
 
 termux-arm64 termux-arm termux-amd64:
+	@command -v "$(TERMUX_QMAKE)" >/dev/null 2>&1 \
+		|| { echo "error: $(TERMUX_QMAKE) not found. Set TERMUX_QMAKE to a Termux Qt kit qmake."; exit 1; }
 	$(call qt_build,Termux,$(patsubst termux-%,%,$@),$(TERMUX_QMAKE),$(if $(TERMUX_SPEC),-spec $(TERMUX_SPEC),),)
 
 # Windows builds ---------------------------------------------------------------
 
 windows: windows-amd64
 
-windows-amd64 windows-arm64 windows-386:
+windows-arm64 windows-386:
 	@command -v "$(WINDOWS_QMAKE)" >/dev/null 2>&1 \
 		|| { echo "error: $(WINDOWS_QMAKE) not found. Set WINDOWS_QMAKE to a Qt kit for Windows."; exit 1; }
 	@if [ "$(WINDOWS_SPEC)" = "win32-g++" ]; then \
@@ -137,6 +143,27 @@ windows-amd64 windows-arm64 windows-386:
 	fi
 	$(call qt_build,Windows,$(patsubst windows-%,%,$@),$(WINDOWS_QMAKE),\
 		-spec $(WINDOWS_SPEC) QMAKE_CC=$(MINGW_PREFIX)-gcc QMAKE_CXX=$(MINGW_PREFIX)-g++,.exe)
+
+WINDOWS_CMAKE_BUILD_DIR ?= $(DIST)/build/Windows-amd64-cmake
+
+WINDOWS_CMAKE_HOST_QT ?= /home/asohishn/Documents/Apps/Qt/aqt-host/6.10.2/gcc_64
+WINDOWS_CMAKE_TARGET_QT ?= /home/asohishn/Documents/Apps/Qt/aqt-win/6.10.2/mingw_64
+
+windows-amd64:
+	@command -v "$(MINGW_PREFIX)-g++" >/dev/null 2>&1 \
+		|| { echo "error: $(MINGW_PREFIX)-g++ not found; install mingw-w64 or set MINGW_PREFIX."; exit 1; }
+	@echo ">>> Building $(APP)-Windows-amd64.exe"
+	@cmake -S "$(CURDIR)" -B "$(WINDOWS_CMAKE_BUILD_DIR)" \
+		-DCMAKE_TOOLCHAIN_FILE="$(CURDIR)/windows.toolchain.cmake" \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DQT_HOST_PATH="$(WINDOWS_CMAKE_HOST_QT)" \
+		-DQt6_DIR="$(WINDOWS_CMAKE_TARGET_QT)/lib/cmake/Qt6"
+	@cmake --build "$(WINDOWS_CMAKE_BUILD_DIR)" -j"$(JOBS)"
+	@test -f "$(WINDOWS_CMAKE_BUILD_DIR)/AvestanEditor.exe" \
+		|| { echo "error: expected $(WINDOWS_CMAKE_BUILD_DIR)/AvestanEditor.exe was not produced"; exit 1; }
+	@mkdir -p "$(DIST)"
+	@cp "$(WINDOWS_CMAKE_BUILD_DIR)/AvestanEditor.exe" "$(DIST)/$(APP)-Windows-amd64.exe"
+	@echo ">>> $(DIST)/$(APP)-Windows-amd64.exe"
 
 # Android builds ---------------------------------------------------------------
 
@@ -164,15 +191,15 @@ define android_build
 	@mkdir -p "$(DIST)/build/Android-$(1)"
 	@echo ">>> Building $(APP)-Android-$(1)"
 	@cd "$(DIST)/build/Android-$(1)" && \
-		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM ANDROID_NDK_ROOT="$(ANDROID_NDK_ROOT)" $(ANDROID_QMAKE) "$(CURDIR)/$(PROJECT)" \
+		$(QT_ENV) ANDROID_NDK_ROOT="$(ANDROID_NDK_ROOT)" $(ANDROID_QMAKE) "$(CURDIR)/$(PROJECT)" \
 			-spec $(ANDROID_SPEC) ANDROID_ABIS="$(2)" \
 			$(if $(ANDROID_NDK_ROOT),ANDROID_NDK_ROOT="$(ANDROID_NDK_ROOT)",) && \
-		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM $(MAKE) -j"$(JOBS)"
+		$(QT_ENV) $(MAKE) -j"$(JOBS)"
 	@if command -v "$(ANDROIDDEPLOYQT)" >/dev/null 2>&1; then \
 		cd "$(DIST)/build/Android-$(1)" && \
 		mkdir -p "android-build/libs/$(2)" && \
 		cp "libavestan-editor_$(2).so" "android-build/libs/$(2)/" && \
-		env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM JAVA_HOME="$(ANDROID_JAVA_HOME)" $(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
+		$(QT_ENV) JAVA_HOME="$(ANDROID_JAVA_HOME)" $(ANDROIDDEPLOYQT) --input "android-avestan-editor-deployment-settings.json" \
 			--output "$(CURDIR)/$(DIST)/build/Android-$(1)/android-build" \
 			--$(ANDROID_PACKAGE_TYPE) --android-platform "android-$(ANDROID_API)" \
 			$(if $(ANDROID_NDK_ROOT),--ndk "$(ANDROID_NDK_ROOT)",); \

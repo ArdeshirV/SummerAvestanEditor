@@ -184,7 +184,8 @@ QVariant CharacterModel::data(const QModelIndex &index, int role) const
         return label;
     }
     const QString hexadecimal = codePointLabel(codePoint);
-    const QString name = Config::instance().unicodeCharacterName(codePoint);
+    const Config &config = Config::instance();
+    const QString name = config.unicodeCharacterName(codePoint);
     if (role == Qt::UserRole) {
         return label + QLatin1Char(' ') + hexadecimal + QLatin1Char(' ') + name;
     }
@@ -203,7 +204,8 @@ QSize KeyDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelInde
 {
     Q_UNUSED(option)
     Q_UNUSED(index)
-    return keySize(Config::instance());
+    const Config &config = Config::instance();
+    return keySize(config);
 }
 
 void KeyDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -338,7 +340,8 @@ QComboBox *KeyboardPanel::takeLanguageSelector()
 
 void KeyboardPanel::setLanguage(int index)
 {
-    const QVector<LanguageDefinition> &languages = Config::instance().languages();
+    const Config &config = Config::instance();
+    const QVector<LanguageDefinition> &languages = config.languages();
     if (index < 0 || index >= languages.size()) {
         return;
     }
@@ -346,7 +349,7 @@ void KeyboardPanel::setLanguage(int index)
         m_languageSelect->setCurrentIndex(index);
     }
     const LanguageDefinition &language = languages.at(index);
-    m_model->setCharacters(language.name, Config::instance().charactersFor(language));
+    m_model->setCharacters(language.name, config.charactersFor(language));
     m_view->scrollToTop();
     emit languageChanged(index);
 }
